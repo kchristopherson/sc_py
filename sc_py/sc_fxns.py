@@ -153,6 +153,14 @@ def get_assets(source, aum_df, better_sources):
     -------
 
     """
+    
+    import pandas as pd
+    import numpy as np
+    from sqlalchemy.engine import URL
+    from sqlalchemy import create_engine
+    connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
+    connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
+    
     if type(better_sources) is not list:
         raise ValueError("""'better_sources' must be of type list """)
 
@@ -419,6 +427,14 @@ def get_returns(source, returns_df, better_sources):
     -------
 
     """
+    import pandas as pd
+    import numpy as np
+    from sqlalchemy.engine import URL
+    from sqlalchemy import create_engine
+    connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
+    connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
+    
+    engine = create_engine(connection_url)    
     if type(better_sources) is not list:
         raise ValueError("""'better_sources' must be of type list """)
 
@@ -720,6 +736,13 @@ def get_fees(source, fees_df, better_sources):
     -------
 
     """
+    import pandas as pd
+    import numpy as np
+    from sqlalchemy.engine import URL
+    from sqlalchemy import create_engine
+    connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
+    connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
+    
     if type(better_sources) is not list:
         raise ValueError("""'better_sources' must be of type list """)
     if 'id' not in fees_df.columns.to_list():
@@ -917,6 +940,13 @@ def get_liquidity(source, liquidity_df, better_sources):
     Returns
     -------
     """
+    import pandas as pd
+    import numpy as np
+    from sqlalchemy.engine import URL
+    from sqlalchemy import create_engine
+    connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
+    connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
+    
     if type(better_sources) is not list:
         raise ValueError("""'better_sources' must be of type list """)
     if 'id' not in liquidity_df.columns.to_list():
