@@ -753,14 +753,14 @@ def get_fees(source, fees_df, better_sources):
     and f.id not in (
         select id from fees where source!="""+quote_char+source+quote_char+""")
                           """, engine)
-    ids = sc.adj_dataframe(ids)
+    ids = adj_dataframe(ids)
     # check to only update funds with existing fees from given source or missing fees
     assets_id = fees_df[fees_df['id'].isin(ids['id'].to_list())]
     assets_id = assets_id.reset_index(drop=True)
 
     db = pd.read_sql_query('SELECT * FROM fees ', engine)
-    db = sc.adj_dataframe(db)
-    db = sc.rename_with_additional_string(db, 'existing')
+    db = adj_dataframe(db)
+    db = rename_with_additional_string(db, 'existing')
 
     # check which internal IDs are in the fees_df but not in the list of funds whose fees we should be updating
     # these are funds with other sources in the database
@@ -801,18 +801,18 @@ def get_fees(source, fees_df, better_sources):
     and f.id not in (
         select id from fees where source!="""+quote_char+source+quote_char+""")
     """, engine)
-    ids = sc.adj_dataframe(ids)
+    ids = adj_dataframe(ids)
     # check to only update funds with existing source's fees or missing fees
     assets_id = fees_df[fees_df['id'].isin(ids['id'].to_list())]
     assets_id = assets_id.reset_index(drop=True)
 
     db = pd.read_sql_query('SELECT * FROM fees ', engine)
-    db = sc.adj_dataframe(db)
+    db = adj_dataframe(db)
     # round to match existing df
     db['management_fee'] = db['management_fee'].round(decimals=8)
     db['performance_fee'] = db['performance_fee'].round(decimals=8)
 
-    db = sc.rename_with_additional_string(db, 'existing')
+    db = rename_with_additional_string(db, 'existing')
 
     merge_df = assets_id.merge(db, how='left',
                                left_on='id',
@@ -962,14 +962,14 @@ def get_liquidity(source, liquidity_df, better_sources):
     and f.id not in (
         select id from fund_liquidity where source!="""+quote_char+source+quote_char+""")
                           """, engine)
-    ids = sc.adj_dataframe(ids)
+    ids = adj_dataframe(ids)
     # check to only update funds with existing fund_liquidity from given source or missing fund_liquidity
     assets_id = liquidity_df[liquidity_df['id'].isin(ids['id'].to_list())]
     assets_id = assets_id.reset_index(drop=True)
 
     db = pd.read_sql_query('SELECT * FROM fund_liquidity ', engine)
-    db = sc.adj_dataframe(db)
-    db = sc.rename_with_additional_string(db, 'existing')
+    db = adj_dataframe(db)
+    db = rename_with_additional_string(db, 'existing')
 
     # check which internal IDs are in the liquidity_df but not in the list of funds whose fund_liquidity we should be updating
     # these are funds with other sources in the database
@@ -1006,16 +1006,16 @@ def get_liquidity(source, liquidity_df, better_sources):
     and f.id not in (
         select id from fund_liquidity where source!="""+quote_char+source+quote_char+""")
     """, engine)
-    ids = sc.adj_dataframe(ids)
+    ids = adj_dataframe(ids)
     # check to only update funds with existing source's fund_liquidity or missing fund_liquidity
     assets_id = liquidity_df[liquidity_df['id'].isin(ids['id'].to_list())]
     assets_id = assets_id.reset_index(drop=True)
 
     db = pd.read_sql_query('SELECT * FROM fund_liquidity ', engine)
-    db = sc.adj_dataframe(db)
+    db = adj_dataframe(db)
 
 
-    db = sc.rename_with_additional_string(db, 'existing')
+    db = rename_with_additional_string(db, 'existing')
 
     merge_df = assets_id.merge(db, how='left',
                                left_on='id',
