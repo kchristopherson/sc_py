@@ -8,4 +8,4 @@ setup(name='sc_py',
       author_email='kchristopherson@silvercreekcapital.com',
       packages=['sc_py'],
      # zip_safe=False
-     )
+     ) 
