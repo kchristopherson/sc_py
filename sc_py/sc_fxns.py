@@ -1110,3 +1110,86 @@ def get_liquidity(source, liquidity_df, better_sources):
                      'lock_up', 'subscription_frequency', 'source']]
     upload.to_sql('fund_liquidity', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
     print(str(len(upload['id']))+' rows deleted and updated')
+ 
+
+
+def send_email_with_attachment(receiver_email, sender_email, subject, body, attachment_file):
+    """
+    This sends an email with given subject, body, and attachment
+    
+    Parameters
+    ----------
+    receiver_email : string
+        email address this is being sent to
+    sender_email : string
+        email address this is being sent from
+    subject : string
+        subject line of the email
+    body : string
+        body of the email
+    attachment_file : string
+        filename that will be attached
+    
+    Notes
+    -----
+    Sample usage: 
+    send_email_with_attachment("scfundriskmonitor@silvercreekcapital.com",
+                           "notification@silvercreekcapital.com",
+                           'Look into this',
+                           'this is the body?',
+                           't.csv')
+    """
+    import email
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.mime.base import MIMEBase
+    from email import encoders
+    import sys, traceback
+
+    port = 25
+    smtp_server = "webmail.silvercreekcapital.com"
+    message = MIMEMultipart()
+    message["From"] = sender_email
+    message["To"] = receiver_email
+    message['Subject'] = subject
+
+    # Add body to email
+    message.attach(MIMEText(body, "plain"))
+
+    # Open file in binary mode
+    with open(attachment_file, "rb") as attachment:
+        # Add file as application/octet-stream
+        # Email client can usually download this automatically as attachment
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(attachment.read())
+
+    # Encode file in ASCII characters to send by email    
+    encoders.encode_base64(part)
+
+    # Add header as key/value pair to attachment part
+    part.add_header(
+        "Content-Disposition",
+        f"attachment; filename= {attachment_file}",
+    )
+
+    # Add attachment to message and convert message to string
+    message.attach(part)
+    sobj=smtplib.SMTP(smtp_server, port)
+    sobj.ehlo()
+    sobj.sendmail(sender_email, receiver_email, message.as_string())
+    
+def convert_lockup(row):
+    import numpy as np
+    if type(row)==str:
+        row = row.lower()
+        if row in ['no', 'none', 'no lockup', 'no lock']:
+            return False
+        elif row in ['n/a', 'na', 'unk', 'unknown']:
+            return np.nan
+        else:
+            return True
+    elif row in [np.nan, None]:
+        return np.nan 
+    else:
+        raise ValueError('the lockup: '+str(row)+'is unnaccounted for in the convert_lockup function. Please investigate.')
