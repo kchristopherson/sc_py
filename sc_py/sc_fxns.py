@@ -1130,7 +1130,6 @@ def send_email_with_attachment(receiver_email, sender_email, subject, body, atta
     attachment_file : string
         filename that will be attached
     
-    Notesit
     -----
     Sample usage: 
     send_email_with_attachment("scfundriskmonitor@silvercreekcapital.com",
@@ -1180,6 +1179,20 @@ def send_email_with_attachment(receiver_email, sender_email, subject, body, atta
     sobj.sendmail(sender_email, receiver_email, message.as_string())
     
 def convert_lockup(row):
+        """
+        evaluates a lockup record to insert to the database
+        since lockup is a bit (true/false) if the record here is not null and not equal to 
+        no or a synonym of "no" then we say the fund has a lockup
+
+        Parameters
+        ---------
+        row : 
+            the dataframe record evaluate
+
+        Returns
+        -------
+        true, false, or null depending on input
+        """
     import numpy as np
     if type(row)==str:
         row = row.lower()
@@ -1189,7 +1202,7 @@ def convert_lockup(row):
             return np.nan
         else:
             return True
-    elif row in [np.nan, None]:
+    elif (row in [None]) or (np.isnan(row) == True): #np.nan not comparable to nan row
         return np.nan 
     else:
         raise ValueError('the lockup: '+str(row)+' is unnaccounted for in the convert_lockup function. Please investigate.')
