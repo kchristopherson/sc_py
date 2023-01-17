@@ -1179,20 +1179,20 @@ def send_email_with_attachment(receiver_email, sender_email, subject, body, atta
     sobj.sendmail(sender_email, receiver_email, message.as_string())
     
 def convert_lockup(row):
-        """
-        evaluates a lockup record to insert to the database
-        since lockup is a bit (true/false) if the record here is not null and not equal to 
-        no or a synonym of "no" then we say the fund has a lockup
+    """
+    evaluates a lockup record to insert to the database
+    since lockup is a bit (true/false) if the record here is not null and not equal to 
+    no or a synonym of "no" then we say the fund has a lockup
 
-        Parameters
-        ---------
-        row : 
-            the dataframe record evaluate
+    Parameters
+    ---------
+    row : 
+        the dataframe record evaluate
 
-        Returns
-        -------
-        true, false, or null depending on input
-        """
+    Returns
+    -------
+    true, false, or null depending on input
+    """
     import numpy as np
     if type(row)==str:
         row = row.lower()
