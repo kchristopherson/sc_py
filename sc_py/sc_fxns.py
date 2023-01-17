@@ -1130,7 +1130,7 @@ def send_email_with_attachment(receiver_email, sender_email, subject, body, atta
     attachment_file : string
         filename that will be attached
     
-    Notes
+    Notesit
     -----
     Sample usage: 
     send_email_with_attachment("scfundriskmonitor@silvercreekcapital.com",
@@ -1183,7 +1183,7 @@ def convert_lockup(row):
     import numpy as np
     if type(row)==str:
         row = row.lower()
-        if row in ['no', 'none', 'no lockup', 'no lock']:
+        if row in ['no', 'none', 'no lockup', 'no lock up' 'no lock']:
             return False
         elif row in ['n/a', 'na', 'unk', 'unknown']:
             return np.nan
@@ -1192,4 +1192,4 @@ def convert_lockup(row):
     elif row in [np.nan, None]:
         return np.nan 
     else:
-        raise ValueError('the lockup: '+str(row)+'is unnaccounted for in the convert_lockup function. Please investigate.')
+        raise ValueError('the lockup: '+str(row)+' is unnaccounted for in the convert_lockup function. Please investigate.')
