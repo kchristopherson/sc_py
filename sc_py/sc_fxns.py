@@ -1206,3 +1206,26 @@ def convert_lockup(row):
         return np.nan 
     else:
         raise ValueError('the lockup: '+str(row)+' is unnaccounted for in the convert_lockup function. Please investigate.')
+
+        
+def pct_returns_from_levels(df):
+    """
+    Returns a dataframe whose levels (values) have been converted to percentage change
+
+    Parameters
+    ---------
+    df : dataframe
+        a dataframe to get percentage change of 
+    Returns
+    -------
+    df_temp : dataframe
+        a dataframe with percentage returns
+    """
+    # select only 'number' dtypes to omit any datetimes
+    df_temp = df.select_dtypes(include=['number']).pct_change(1).merge(df['asof_date'], left_index=True, right_index=True)
+    df_temp.drop(index=0, inplace=True)
+    date_col = df_temp.pop('asof_date')
+    df_temp.insert(0, 'asof_date', date_col)  # re-insert as first column
+    df_temp.reset_index(inplace=True, drop=True)
+    df_temp = df_temp
+    return df_temp
