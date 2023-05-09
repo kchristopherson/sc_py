@@ -427,6 +427,9 @@ def get_returns(source, returns_df, better_sources):
     -------
 
     """
+    # set this to false as mostly not used
+    use_type = False
+    
     if type(better_sources) is not list:
         raise ValueError("""'better_sources' must be of type list """)
 
@@ -438,7 +441,9 @@ def get_returns(source, returns_df, better_sources):
         raise ValueError("""asof_date must be a column in returns_df """)
     if 'source' not in returns_df.columns.to_list():
         raise ValueError("""source must be a column in returns_df """)
-
+    if 'type'  in returns_df.columns.to_list():
+        use_type = True
+        
     quote_char = "'"
     sql_source = quote_char+source+quote_char
     # get list of funds that are missing returns or are currently using given source for returns
@@ -512,6 +517,7 @@ def get_returns(source, returns_df, better_sources):
         sc.batch_delete(old_to_delete, 'old_returns_ts', 'ret_ts_id')
         old_upload_combo = pd.concat([old_new_records, old_delete_records])
         old_upload_combo = old_upload_combo[['id', 'asof_date', 'return_value', 'source']]
+
         old_upload_combo.to_sql('old_returns_ts', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
         print('   '+str(len(old_new_records['id']))+' new rows inserted to old_returns_ts')
         print('   '+str(len(old_delete_records['id']))+' rows deleted and updated to old_returns_ts')
@@ -614,7 +620,11 @@ def get_returns(source, returns_df, better_sources):
     upload = pd.concat([new, breaks])
     upload = upload.reset_index(drop=True)
     upload.loc[:, 'source'] = source
-    upload = upload[['id', 'asof_date', 'return_value', 'source']]
+    if use_type == False:
+        upload = upload[['id', 'asof_date', 'return_value', 'source']]
+    elif use_type == True:
+        upload = upload[['id', 'asof_date', 'return_value', 'source', 'type']]
+        
     upload.to_sql('returns_ts', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
     print('   '+str(len(new['id']))+' new rows inserted to returns_ts')
     print('   '+str(len(breaks['id']))+' rows deleted and updated to returns_ts')
@@ -698,7 +708,10 @@ def get_returns(source, returns_df, better_sources):
     blend_upload = blend_upload.reset_index(drop=True)
     if len(blend_upload['id']) > 0:
         blend_upload.loc[:, 'source'] = source
-        blend_upload = blend_upload[['id', 'asof_date', 'return_value', 'source']]
+        if use_type == False:
+            blend_upload = blend_upload[['id', 'asof_date', 'return_value', 'source']]
+        elif use_type == True:
+            blend_upload = blend_upload[['id', 'asof_date', 'return_value', 'source', 'type']]        
         blend_upload.to_sql('returns_ts', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
         print('   '+str(len(blend_new['id']))+' new rows inserted to returns_ts')
         print('   '+str(len(blend_breaks['id']))+' rows deleted and updated to returns_ts')
