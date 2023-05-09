@@ -429,7 +429,7 @@ def get_returns(source, returns_df, better_sources):
     -------
 
     """
-    
+    import sc_py as sc
     import pandas as pd
     import numpy as np
     from sqlalchemy.engine import URL
