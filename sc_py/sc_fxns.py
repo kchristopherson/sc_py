@@ -427,6 +427,14 @@ def get_returns(source, returns_df, better_sources):
     -------
 
     """
+    
+    import pandas as pd
+    import numpy as np
+    from sqlalchemy.engine import URL
+    from sqlalchemy import create_engine
+    connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
+    connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
+    
     # set this to false as mostly not used
     use_type = False
     
