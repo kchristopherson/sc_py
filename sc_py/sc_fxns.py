@@ -160,6 +160,8 @@ def get_assets(source, aum_df, better_sources):
     from sqlalchemy import create_engine
     connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
     connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
+    engine = create_engine(connection_url)
+
     
     if type(better_sources) is not list:
         raise ValueError("""'better_sources' must be of type list """)
@@ -434,7 +436,8 @@ def get_returns(source, returns_df, better_sources):
     from sqlalchemy import create_engine
     connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
     connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
-    
+    engine = create_engine(connection_url)
+
     # set this to false as mostly not used
     use_type = False
     
