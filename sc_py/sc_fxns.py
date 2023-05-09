@@ -427,14 +427,6 @@ def get_returns(source, returns_df, better_sources):
     -------
 
     """
-    import pandas as pd
-    import numpy as np
-    from sqlalchemy.engine import URL
-    from sqlalchemy import create_engine
-    connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
-    connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
-    
-    engine = create_engine(connection_url)    
     if type(better_sources) is not list:
         raise ValueError("""'better_sources' must be of type list """)
 
@@ -465,12 +457,13 @@ def get_returns(source, returns_df, better_sources):
     and e.external_source="""+sql_source+"""
     and f.blend_returns=0
     and e.id not in (select id from returns_ts where source!="""+sql_source+""")
-    """, engine)
-    ids = adj_dataframe(ids)
+    """, engine, dtype = {'id': np.int64, 'external_id': np.int64})
+    ids = sc.adj_dataframe(ids)
 
-    db = pd.read_sql_query('SELECT * FROM returns_ts', engine)
-    db = adj_dataframe(db)
-    db = rename_with_additional_string(db, 'existing')
+    db = pd.read_sql_query('SELECT * FROM returns_ts', engine,
+                        parse_dates = ['asof_date'],
+                        dtype = {'id': np.int64, 'ret_ts_id': np.int64})
+    db = sc.rename_with_additional_string(db, 'existing')
 
     print('starting process to remove inferior return sources')
     # check which internal IDs are in the returns_df but not in the list of funds whose returns we should be updating
@@ -479,7 +472,7 @@ def get_returns(source, returns_df, better_sources):
     # filter out funds with blended returns
     # then delete the returns of funds with non-blended returns
     other_sources = list(returns_df[~returns_df['id'].isin(ids['id'])]['id'].unique())
-    fund_check = pd.read_sql_query("""select * from funds""", engine)
+    fund_check = pd.read_sql_query("""select * from funds""", engine, dtype = {'id': np.int64})
     fund_check = fund_check[fund_check['id'].isin(other_sources)]
     funds_to_delete = fund_check[fund_check['blend_returns'] == 0]
     worse_returns = funds_to_delete.merge(db, how='left', left_on=['id'], right_on=['id existing'])
@@ -500,9 +493,10 @@ def get_returns(source, returns_df, better_sources):
                                                                     'source existing': 'source'})
 
     if len(old_upload['id']) > 0:
-        db_old = pd.read_sql_query('SELECT * FROM old_returns_ts', engine)
-        db_old = adj_dataframe(db_old)
-        db_old = rename_with_additional_string(db_old, 'existing')
+        db_old = pd.read_sql_query('SELECT * FROM old_returns_ts', engine,
+                                   parse_dates = ['asof_date'],
+                                   dtype = {'id': np.int64, 'ret_ts_id': np.int64})
+        db_old = sc.rename_with_additional_string(db_old, 'existing')
         # merge on source here to ensure we are retaining records from various sources in case we need to fallback
         old_upload = old_upload.merge(db_old,
                                       how='left',
@@ -515,7 +509,7 @@ def get_returns(source, returns_df, better_sources):
         # delete the old records
         old_to_delete = old_delete_records['ret_ts_id existing'].to_list()
         # delete the old records
-        batch_delete(old_to_delete, 'old_returns_ts', 'ret_ts_id')
+        sc.batch_delete(old_to_delete, 'old_returns_ts', 'ret_ts_id')
         old_upload_combo = pd.concat([old_new_records, old_delete_records])
         old_upload_combo = old_upload_combo[['id', 'asof_date', 'return_value', 'source']]
         old_upload_combo.to_sql('old_returns_ts', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
@@ -526,7 +520,7 @@ def get_returns(source, returns_df, better_sources):
 
     # delete the old records
     to_delete = worse_returns['ret_ts_id existing'].to_list()
-    batch_delete(to_delete, 'returns_ts', 'ret_ts_id')
+    sc.batch_delete(to_delete, 'returns_ts', 'ret_ts_id')
 
     print('   '+str(len(worse_returns['ret_ts_id existing']))+' inferior rows of return sources deleted from returns_ts')
 
@@ -551,14 +545,15 @@ def get_returns(source, returns_df, better_sources):
     and e.external_source="""+sql_source+"""
     and f.blend_returns=0
     and e.id not in (select id from returns_ts where source!="""+sql_source+""")
-    """, engine)
-    ids = adj_dataframe(ids)
+    """, engine, dtype = {'id': np.int64, 'external_id': np.int64})
+    ids = sc.adj_dataframe(ids)
     rets_ids = returns_df[returns_df['id'].isin(ids['id'].to_list())]
     rets_ids = rets_ids.reset_index(drop=True)
 
-    db = pd.read_sql_query('SELECT * FROM returns_ts', engine)
-    db = adj_dataframe(db)
-    db = rename_with_additional_string(db, 'existing')
+    db = pd.read_sql_query('SELECT * FROM returns_ts', engine,
+                           parse_dates = ['asof_date'],
+                           dtype = {'id': np.int64, 'ret_ts_id': np.int64})
+    db = sc.rename_with_additional_string(db, 'existing')
 
     # check which funds have new returns or return differences
     # we query the whole database of returns, then left join
@@ -568,7 +563,7 @@ def get_returns(source, returns_df, better_sources):
                               how='left',
                               left_on=['id', 'asof_date'],
                               right_on=['id existing', 'asof_date existing'])
-    merge_df = adj_dataframe(merge_df)
+    merge_df = sc.adj_dataframe(merge_df)
     merge_df = merge_df[~merge_df['source existing'].isin(better_sources)]
     new = merge_df[merge_df['ret_ts_id existing'].isnull()]
     breaks = merge_df[~merge_df['ret_ts_id existing'].isnull()]
@@ -586,9 +581,10 @@ def get_returns(source, returns_df, better_sources):
                                                              'source existing': 'source'})
 
     if len(old_upload['id']) > 0:
-        db_old = pd.read_sql_query('SELECT * FROM old_returns_ts', engine)
-        db_old = adj_dataframe(db_old)
-        db_old = rename_with_additional_string(db_old, 'existing')
+        db_old = pd.read_sql_query('SELECT * FROM old_returns_ts', engine, 
+                           parse_dates = ['asof_date'],
+                           dtype = {'id': np.int64, 'ret_ts_id': np.int64})
+        db_old = sc.rename_with_additional_string(db_old, 'existing')
         # merge on source here to ensure we are retaining records from various sources in case we need to fallback
         old_upload = old_upload.merge(db_old,
                                       how='left',
@@ -601,7 +597,7 @@ def get_returns(source, returns_df, better_sources):
         # delete the old records
         old_to_delete = old_delete_records['ret_ts_id existing'].to_list()
         # delete the old records
-        batch_delete(old_to_delete, 'old_returns_ts', 'ret_ts_id')
+        sc.batch_delete(old_to_delete, 'old_returns_ts', 'ret_ts_id')
         old_upload_combo = pd.concat([old_new_records, old_delete_records])
         old_upload_combo = old_upload_combo[['id', 'asof_date', 'return_value', 'source']]
         old_upload_combo.to_sql('old_returns_ts', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
@@ -613,7 +609,7 @@ def get_returns(source, returns_df, better_sources):
     breaks.to_csv(source+'_backup2.csv')
     # delete the old records
     to_delete = breaks['ret_ts_id existing'].to_list()
-    batch_delete(to_delete, 'returns_ts', 'ret_ts_id')
+    sc.batch_delete(to_delete, 'returns_ts', 'ret_ts_id')
 
     upload = pd.concat([new, breaks])
     upload = upload.reset_index(drop=True)
@@ -635,16 +631,15 @@ def get_returns(source, returns_df, better_sources):
     where e.mapping_status='Live'
     and e.is_shareclass=0
     and e.external_source="""+sql_source+"""
-    and f.blend_returns=1""", engine)
-    blend_ids = adj_dataframe(blend_ids)
-
+    and f.blend_returns=1""", engine, dtype = {'id': np.int64, 'external_id': np.int64})
     # instead of inner mergeing here, we can just use isin to filter only on funds with blended returns
     blend_rets = returns_df[returns_df['id'].isin(blend_ids['id'].to_list())]
     blend_rets = blend_rets.reset_index(drop=True)
 
-    db_blend = pd.read_sql_query('SELECT * FROM returns_ts', engine)
-    db_blend = adj_dataframe(db_blend)
-    db_blend = rename_with_additional_string(db_blend, 'existing')
+    db_blend = pd.read_sql_query('SELECT * FROM returns_ts', engine, 
+                           parse_dates = ['asof_date'],
+                           dtype = {'id': np.int64, 'ret_ts_id': np.int64})
+    db_blend = sc.rename_with_additional_string(db_blend, 'existing')
 
     merge_blend_df = blend_rets.merge(db_blend,
                                       how='left',
@@ -669,9 +664,10 @@ def get_returns(source, returns_df, better_sources):
                                                                          'source existing': 'source'})
 
     if len(old_blend_upload['id']) > 0:
-        db_old_blend = pd.read_sql_query('SELECT * FROM old_returns_ts', engine)
-        db_old_blend = adj_dataframe(db_old_blend)
-        db_old_blend = rename_with_additional_string(db_old_blend, 'existing')
+        db_old_blend = pd.read_sql_query('SELECT * FROM old_returns_ts', engine, 
+                           parse_dates = ['asof_date'],
+                           dtype = {'id': np.int64, 'ret_ts_id': np.int64})
+        db_old_blend = sc.rename_with_additional_string(db_old_blend, 'existing')
         # merge on source to keep all previous versions of each source
         old_blend_upload = old_blend_upload.merge(db_old_blend,
                                                   left_on=['id', 'asof_date', 'source'],
@@ -683,7 +679,7 @@ def get_returns(source, returns_df, better_sources):
         # delete the old records
         old_blend_to_delete = old_blend_delete_records['ret_ts_id existing'].to_list()
         # delete the old records
-        batch_delete(old_blend_to_delete, 'old_returns_ts', 'ret_ts_id')
+        sc.batch_delete(old_blend_to_delete, 'old_returns_ts', 'ret_ts_id')
 
         old_blend_upload_combo = pd.concat([old_blend_new_records, old_blend_delete_records])
         old_blend_upload_combo = old_blend_upload_combo[['id', 'asof_date', 'return_value', 'source']]
@@ -696,7 +692,7 @@ def get_returns(source, returns_df, better_sources):
     blend_to_delete = blend_breaks['ret_ts_id existing'].to_list()
 
     # delete the old records
-    batch_delete(blend_to_delete, 'returns_ts', 'ret_ts_id')
+    sc.batch_delete(blend_to_delete, 'returns_ts', 'ret_ts_id')
 
     blend_upload = pd.concat([blend_new, blend_breaks])
     blend_upload = blend_upload.reset_index(drop=True)
@@ -1215,7 +1211,8 @@ def pct_returns_from_levels(df):
     Parameters
     ---------
     df : dataframe
-        a dataframe to get percentage change of 
+        a dataframe to get percentage change of
+        requires that the date column is named "asof_date"
     Returns
     -------
     df_temp : dataframe
