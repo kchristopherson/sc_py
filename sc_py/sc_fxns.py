@@ -1328,15 +1328,15 @@ def get_status(df, source_name, better_sources_list):
         
         sub_list_to_delete = ','.join((map(str, status_update['id'].to_list())))
         sub_list_to_delete = '('+sub_list_to_delete+')'
-        # cursor.execute(''' DELETE FROM fund_status where id in '''+sub_list_to_delete)
+        cursor.execute(''' DELETE FROM fund_status where id in '''+sub_list_to_delete)
         conn.commit()
 
         print(str(len(status_update['id']))+' no. records deleted')
-        # status_update[['id',
-        #                      'current_status',
-        #                      'status_source',
-        #                      'included',
-        #                      'included_source']].to_sql('fund_status', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
+        status_update[['id',
+                             'current_status',
+                             'status_source',
+                             'included',
+                             'included_source']].to_sql('fund_status', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
         print(str(len(status_update['id']))+' funds have had their status updated')
     else:
         print('no funds need updating')
