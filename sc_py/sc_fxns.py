@@ -1250,3 +1250,83 @@ def pct_returns_from_levels(df):
     df_temp.reset_index(inplace=True, drop=True)
     df_temp = df_temp
     return df_temp
+
+
+
+def get_status(df, source_name, better_sources_list):
+    """
+    Updates the fund_status table with given inputs.
+
+    Parameters
+    ---------
+    df: dataframe
+        a dataframe of status records we want to use to update the database
+    source_name: str
+        the name of the source for the status records inside df
+    better_sources_list: list
+        a list containing sources we don't want to overwrite
+    
+    Returns
+    -------
+    status_update: dataframe
+        the df used to update
+    """
+    # include manual here as that is how we override. we dont want to override these records
+    better_sources_list = better_sources_list + ['manual']
+    if 'id' not in df.columns:
+        raise ValueError('df must have internal IDs')
+    if 'current_status' not in df.columns:
+        raise ValueError('df must have current_status column')        
+    if 'included' not in df.columns:
+        raise ValueError('df must have included column')
+    if 'included_source' not in df.columns:
+        df.loc[:, 'included_source'] = source_name    
+    if 'status_source' not in df.columns:
+        df.loc[:, 'status_source'] = source_name        
+
+    fs = pd.read_sql_query("""select * from fund_status""", engine)
+
+    status_check = df.merge(fs, on = 'id', suffixes = ('', ' existing'), how = 'left')
+
+    update = status_check[status_check['current_status'] != status_check['current_status existing']].copy()
+    # always update 'Unknown' status
+    update1 = update[update['current_status existing'] == 'Unknown'].copy()
+    update1 = update1.drop(columns = ['included', 'included_source'])
+    # set the old included data as new to preseve it
+    update1 = update1.rename(columns = {'included existing': 'included',
+                                        'included_source existing': 'included_source'})
+
+    # exclude albourne or manual as the source
+    # this would also include new records
+    update2 = update[~update['status_source existing'].isin(better_sources_list)].copy()
+    #fill missing records with data from df (these will be nulls)
+    update2.loc[:, 'included existing'] = update2['included existing'].fillna(update2['included'])
+    update2.loc[:, 'included_source existing'] = update2['included_source existing'].fillna(update2['included_source'])
+    update2 = update2.drop(columns = ['included', 'included_source'])
+    # set the old included data as new to preseve it
+    update2 = update2.rename(columns = {'included existing': 'included',
+                                        'included_source existing': 'included_source'})
+    
+    # drop any funds we already caught to prevent dupes
+    update1 = update1[~update1['id'].isin(update2['id'])]
+
+    status_update = pd.concat([update1, update2])
+    status_update = status_update.reset_index(drop=True)
+
+    if len(status_update['id'])>0:
+        
+        sub_list_to_delete = ','.join((map(str, status_update['id'].to_list())))
+        sub_list_to_delete = '('+sub_list_to_delete+')'
+        # cursor.execute(''' DELETE FROM fund_status where id in '''+sub_list_to_delete)
+        conn.commit()
+
+        print(str(len(status_update['id']))+' no. records deleted')
+        # status_update[['id',
+        #                      'current_status',
+        #                      'status_source',
+        #                      'included',
+        #                      'included_source']].to_sql('fund_status', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
+        print(str(len(status_update['id']))+' funds have had their status updated')
+    else:
+        print('no funds need updating')
+    return status_update
