@@ -1271,6 +1271,17 @@ def get_status(df, source_name, better_sources_list):
     status_update: dataframe
         the df used to update
     """
+    import pandas as pd
+    import numpy as np
+    from sqlalchemy.engine import URL
+    from sqlalchemy import create_engine
+    from pyodbc import connect
+
+    connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
+    connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
+    engine = create_engine(connection_url)
+    conn = connect(connection_string)
+
     # include manual here as that is how we override. we dont want to override these records
     better_sources_list = better_sources_list + ['manual']
     if 'id' not in df.columns:
