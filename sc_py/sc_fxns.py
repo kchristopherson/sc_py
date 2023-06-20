@@ -47,7 +47,8 @@ def batch_delete(list_to_delete, table_name, delete_column_name):
     from pyodbc import connect
     import pandas as pd
     connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
-    connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
+    connection_url = URL.create(
+        "mssql+pyodbc", query={"odbc_connect": connection_string})
 
     engine = create_engine(connection_url)
     conn = connect(connection_string)
@@ -56,7 +57,8 @@ def batch_delete(list_to_delete, table_name, delete_column_name):
     if type(list_to_delete) is not list:
         raise ValueError("""'list_to_delete' must be of type list """)
     # get initial record count
-    beg_no_records_df = pd.read_sql_query("""select count("""+delete_column_name+""") as ct from """+table_name, engine)
+    beg_no_records_df = pd.read_sql_query(
+        """select count("""+delete_column_name+""") as ct from """+table_name, engine)
     no_records = beg_no_records_df.loc[0, 'ct']
     if len(list_to_delete) > 0:
         # the database can only delete 2090 records in one go
@@ -65,16 +67,20 @@ def batch_delete(list_to_delete, table_name, delete_column_name):
             print('need to batch delete to accomodate database limits')
             num_iterations = ceil(len(list_to_delete)/2090)
             for i in range(num_iterations):
-                print('deleting rows '+str(i*2090)+' to '+str(min(2090*(i+1), len(list_to_delete))))
+                print('deleting rows '+str(i*2090)+' to ' +
+                      str(min(2090*(i+1), len(list_to_delete))))
                 sub_list_to_delete = list_to_delete[2090*(i):2090*(i+1)]
                 if type(sub_list_to_delete[0]) == str:
                     # we only check the first element because sql ensures constant datatypes
-                    sub_list_to_delete = "','".join((map(str, sub_list_to_delete)))
+                    sub_list_to_delete = "','".join(
+                        (map(str, sub_list_to_delete)))
                     sub_list_to_delete = "'"+sub_list_to_delete+"'"
                 else:
-                    sub_list_to_delete = ','.join((map(str, sub_list_to_delete)))
+                    sub_list_to_delete = ','.join(
+                        (map(str, sub_list_to_delete)))
                 sub_list_to_delete = '('+sub_list_to_delete+')'
-                cursor.execute(''' DELETE FROM '''+table_name+''' where '''+delete_column_name+''' in '''+sub_list_to_delete)
+                cursor.execute(''' DELETE FROM '''+table_name+''' where ''' +
+                               delete_column_name+''' in '''+sub_list_to_delete)
                 conn.commit()
 
         elif len(list_to_delete) > 0:
@@ -85,12 +91,15 @@ def batch_delete(list_to_delete, table_name, delete_column_name):
             else:
                 temp_list_to_delete = ','.join((map(str, list_to_delete)))
             temp_list_to_delete = '('+temp_list_to_delete+')'
-            cursor.execute(''' DELETE FROM '''+table_name+''' where '''+delete_column_name+''' in '''+temp_list_to_delete)
+            cursor.execute(''' DELETE FROM '''+table_name+''' where ''' +
+                           delete_column_name+''' in '''+temp_list_to_delete)
             conn.commit()
         # get updated record count
-        end_no_records_df = pd.read_sql_query("""select count("""+delete_column_name+""") as ct from """+table_name, engine)
+        end_no_records_df = pd.read_sql_query(
+            """select count("""+delete_column_name+""") as ct from """+table_name, engine)
         end_no_records = end_no_records_df.loc[0, 'ct']
-        print('deleted '+str(no_records-end_no_records)+' number of records from table: '+table_name+', based on column: ' + delete_column_name)
+        print('deleted '+str(no_records-end_no_records)+' number of records from table: ' +
+              table_name+', based on column: ' + delete_column_name)
     else:
         print('no records to delete from: '+table_name)
 
@@ -128,7 +137,8 @@ def adj_dataframe(df):
             try:
                 df[col] = df[col].apply(int)
 
-            except:  # if there are np.nan's in the column, apply(int) fails - this is a workaround
+            # if there are np.nan's in the column, apply(int) fails - this is a workaround
+            except:
                 df[col] = df[col].astype('object')
 
             for index, row in df.iterrows():
@@ -153,19 +163,18 @@ def get_assets(source, aum_df, better_sources):
     -------
 
     """
-    
+
     import pandas as pd
     import numpy as np
     from sqlalchemy.engine import URL
     from sqlalchemy import create_engine
     connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
-    connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
+    connection_url = URL.create(
+        "mssql+pyodbc", query={"odbc_connect": connection_string})
     engine = create_engine(connection_url)
 
-    
     if type(better_sources) is not list:
         raise ValueError("""'better_sources' must be of type list """)
-
     if 'id' not in aum_df.columns.to_list():
         raise ValueError("""id must be a column in aum_df """)
     if 'asset_value' not in aum_df.columns.to_list():
@@ -192,15 +201,15 @@ def get_assets(source, aum_df, better_sources):
     and f.blend_aums=0
     and f.id not in (
         select id from aum_ts where source!="""+quote_char+source+quote_char+""")
-                          """, engine)
-    ids = adj_dataframe(ids)
+                            """, engine, dtype={'id': np.int64})
     # check to only update funds with existing AUMs from given source or missing AUMs
     assets_id = aum_df[aum_df['id'].isin(ids['id'].to_list())]
     assets_id = assets_id.reset_index(drop=True)
 
-    db = pd.read_sql_query('SELECT * FROM aum_ts ', engine)
-    db = adj_dataframe(db)
-    db = rename_with_additional_string(db, 'existing')
+    db = pd.read_sql_query('SELECT * FROM aum_ts ',
+                           engine,
+                           dtype={'id': np.int64, 'aum_ts_id': np.int64},
+                           parse_dates=['asof_date'])
 
     # check which internal IDs are in the aum_df but not in the list of funds whose aums we should be updating
     # these are funds with other sources in the database
@@ -208,54 +217,59 @@ def get_assets(source, aum_df, better_sources):
     # filter out funds with blended aums
     # then delete the aums of funds with non-blended aums
     other_sources = list(aum_df[~aum_df['id'].isin(ids['id'])]['id'].unique())
-    fund_check = pd.read_sql_query("""select * from funds""", engine)
+    fund_check = pd.read_sql_query("""select * from funds""",
+                                   engine,
+                                   dtype={'id': np.int64, })
     fund_check = fund_check[fund_check['id'].isin(other_sources)]
     funds_to_delete = fund_check[fund_check['blend_aums'] == 0]
-    worse_aums = funds_to_delete.merge(db, how='left', left_on=['id'], right_on=['id existing'])
-    worse_aums = worse_aums[~worse_aums['source existing'].isin(better_sources)]
+    worse_aums = funds_to_delete.merge(
+        db, how='left', on=['id'], suffixes=('', ' existing'))
+    worse_aums = worse_aums[~worse_aums['source'].isin(better_sources)]
 
-    worse_aums = worse_aums[['id existing', 'asof_date existing', 'asset_value existing', 'source existing', 'aum_ts_id existing']]
+    worse_aums = worse_aums[['id', 'asof_date',
+                             'asset_value', 'source', 'aum_ts_id']]
     worse_aums.to_csv(source+"_aum_backup.csv")
 
     # current process is to move old aums out of the primary aums database (aumss_ts) and into old_aum_ts
     # we do this as a backup in case any funds aums need to be restored
     # this only has to be done on the breaks df because that represents the aums we're about to delete
-    old_upload = worse_aums[['id existing',
-                             'asof_date existing',
-                             'asset_value existing',
-                             'source existing']].rename(columns={'id existing': 'id',
-                                                                 'asof_date existing': 'asof_date',
-                                                                 'asset_value existing': 'asset_value',
-                                                                 'source existing': 'source'})
+    old_upload = worse_aums.copy()
     if len(old_upload['id']) > 0:
-        db_old = pd.read_sql_query('SELECT * FROM old_aum_ts', engine)
-        db_old = adj_dataframe(db_old)
-        db_old = rename_with_additional_string(db_old, 'existing')
+        db_old = pd.read_sql_query('SELECT * FROM old_aum_ts',
+                                   engine, dtype={'id': np.int64,
+                                                  'aum_ts_id': np.int64},
+                                   parse_dates=['asof_date'])
         # merge on source here to ensure we are retaining records from various sources in case we need to fallback
         old_upload = old_upload.merge(db_old,
                                       how='left',
-                                      left_on=['id', 'asof_date', 'source'],
-                                      right_on=['id existing', 'asof_date existing', 'source existing'])
+                                      on=['id', 'asof_date', 'source'],
+                                      suffixes=('', ' existing'))
         # get new records to insert to old_aum_ts
-        old_new_records = old_upload[old_upload['aum_ts_id existing'].isnull()]
+        old_new_records = old_upload[old_upload['aum_ts_id'].isnull()]
         # get records to delete from old_aum_ts
-        old_delete_records = old_upload[~old_upload['aum_ts_id existing'].isnull()]
+        old_delete_records = old_upload[~old_upload['aum_ts_id'].isnull()]
         # delete the old records
-        old_to_delete = old_delete_records['aum_ts_id existing'].to_list()
-        batch_delete(old_to_delete, 'old_aum_ts', 'aum_ts_id')
+        old_to_delete = old_delete_records['aum_ts_id'].to_list()
+        sc.batch_delete(old_to_delete, 'old_aum_ts', 'aum_ts_id')
         old_upload_combo = pd.concat([old_new_records, old_delete_records])
-        old_upload_combo = old_upload_combo[['id', 'asof_date', 'asset_value', 'source']]
-        old_upload_combo.to_sql('old_aum_ts', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
-        print(str(len(old_new_records['id']))+' new rows inserted to old_aum_ts')
-        print(str(len(old_delete_records['id']))+' rows deleted and updated to old_aum_ts')
+        old_upload_combo = old_upload_combo[[
+            'id', 'asof_date', 'asset_value', 'source']]
+        # index=False prevents failure on trying to insert the index column
+        old_upload_combo.to_sql('old_aum_ts', engine,
+                                if_exists='append', index=False)
+        print(str(len(old_new_records['id'])) +
+              ' new rows inserted to old_aum_ts')
+        print(str(len(old_delete_records['id'])) +
+              ' rows deleted and updated to old_aum_ts')
     else:
         print('no records to move to old_aum_ts')
 
     # delete the old records
-    to_delete = worse_aums['aum_ts_id existing'].to_list()
-    batch_delete(to_delete, 'aum_ts', 'aum_ts_id')
+    to_delete = worse_aums['aum_ts_id'].to_list()
+    sc.batch_delete(to_delete, 'aum_ts', 'aum_ts_id')
 
-    print(str(len(worse_aums['aum_ts_id existing']))+' rows of inferior aum sources deleted from aum_ts')
+    print(str(len(worse_aums['aum_ts_id'])) +
+          ' rows of inferior aum sources deleted from aum_ts')
 
     ids = pd.read_sql_query("""
     select e.id,e.external_id 
@@ -273,67 +287,71 @@ def get_assets(source, aum_df, better_sources):
     and f.blend_aums=0
     and f.id not in (
         select id from aum_ts where source!="""+quote_char+source+quote_char+""")
-    """, engine)
-    ids = adj_dataframe(ids)
+    """, engine, dtype={'id': np.int64})
     # check to only update funds with existing source's AUMs or missing AUMs
     assets_id = aum_df[aum_df['id'].isin(ids['id'].to_list())]
     assets_id = assets_id.reset_index(drop=True)
 
-    db = pd.read_sql_query('SELECT * FROM aum_ts ', engine)
-    db = adj_dataframe(db)
-    db = rename_with_additional_string(db, 'existing')
+    db = pd.read_sql_query('SELECT * FROM aum_ts',
+                           engine,
+                           dtype={'id': np.int64, 'aum_ts_id': np.int64},
+                           parse_dates=['asof_date'])
 
     merge_df = assets_id.merge(db, how='left',
-                               left_on=['id', 'asof_date'],
-                               right_on=['id existing', 'asof_date existing'])
+                               on=['id', 'asof_date'],
+                               suffixes=('', ' existing'))
 
     merge_df = merge_df[~merge_df['source existing'].isin(better_sources)]
-    new = merge_df[merge_df['aum_ts_id existing'].isnull()]
-    breaks = merge_df[~merge_df['aum_ts_id existing'].isnull()]
+    new = merge_df[merge_df['aum_ts_id'].isnull()]
+    breaks = merge_df[~merge_df['aum_ts_id'].isnull()]
     breaks = breaks[breaks['asset_value'] != breaks['asset_value existing']]
 
     # create dataframe to move old 'break' records to old_aum_ts
-    old_upload = breaks[['id existing',
-                         'asof_date existing',
+    old_upload = breaks[['id',
+                         'asof_date',
                         'asset_value existing',
-                         'source existing']].rename(columns={'id existing': 'id',
-                                                             'asof_date existing': 'asof_date',
-                                                             'asset_value existing': 'asset_value',
+                         'source existing']].rename(columns={'asset_value existing': 'asset_value',
                                                              'source existing': 'source'})
     if len(old_upload['id']) > 0:
-        db_old = pd.read_sql_query('SELECT * FROM old_aum_ts', engine)
-        db_old = adj_dataframe(db_old)
-        db_old = rename_with_additional_string(db_old, 'existing')
+        db_old = pd.read_sql_query('SELECT * FROM old_aum_ts',
+                                   engine,
+                                   dtype={'id': np.int64,
+                                          'aum_ts_id': np.int64},
+                                   parse_dates=['asof_date'])
 
         old_upload = old_upload.merge(db_old,
-                                      left_on=['id', 'asof_date', 'source'],
-                                      right_on=['id existing', 'asof_date existing', 'source existing'])
+                                      on=['id', 'asof_date', 'source'],
+                                      suffixes=('', ' existing'))
         # get new records to insert to old_aum_ts
-        old_new_records = old_upload[old_upload['aum_ts_id existing'].isnull()]
+        old_new_records = old_upload[old_upload['aum_ts_id'].isnull()]
         # get records to delete from old_aum_ts
-        old_delete_records = old_upload[~old_upload['aum_ts_id existing'].isnull()]
+        old_delete_records = old_upload[~old_upload['aum_ts_id'].isnull()]
 
         # delete the old records
-        old_to_delete = old_delete_records['aum_ts_id existing'].to_list()
-        batch_delete(old_to_delete, 'old_aum_ts', 'aum_ts_id')
+        old_to_delete = old_delete_records['aum_ts_id'].to_list()
+        sc.batch_delete(old_to_delete, 'old_aum_ts', 'aum_ts_id')
 
         old_upload = pd.concat([old_upload, old_delete_records])
         old_upload = old_upload[['id', 'asof_date', 'asset_value', 'source']]
-        old_upload.to_sql('old_aum_ts', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
+        # index=False prevents failure on trying to insert the index column
+        old_upload.to_sql('old_aum_ts', engine,
+                          if_exists='append', index=False)
         print(str(len(old_upload['id']))+' new rows inserted to old_aum_ts')
-        print(str(len(old_delete_records['id']))+' rows deleted and updated to old_aum_ts')
+        print(str(len(old_delete_records['id'])) +
+              ' rows deleted and updated to old_aum_ts')
     else:
         print('no records to move to old_aum_ts')
 
-    to_delete = breaks['aum_ts_id existing'].to_list()
+    to_delete = breaks['aum_ts_id'].to_list()
     # delete the old records
-    batch_delete(to_delete, 'aum_ts', 'aum_ts_id')
+    sc.batch_delete(to_delete, 'aum_ts', 'aum_ts_id')
 
     upload = pd.concat([new, breaks])
     upload.loc[:, 'source'] = source
 
     upload = upload[['id', 'asof_date', 'asset_value', 'source']]
-    upload.to_sql('aum_ts', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
+    # index=False prevents failure on trying to insert the index column
+    upload.to_sql('aum_ts', engine, if_exists='append', index=False)
     print(str(len(upload['id']))+' rows deleted and updated')
 
     # query funds with blended AUMs allowed
@@ -344,70 +362,82 @@ def get_assets(source, aum_df, better_sources):
     where e.mapping_status='Live'
     and e.is_shareclass=0
     and e.external_source="""+quote_char+source+quote_char+"""
-    and f.blend_aums=1""", engine)
-    blend_ids = adj_dataframe(blend_ids)
+    and f.blend_aums=1""", engine, dtype={'id': np.int64})
     blend_aums = aum_df[aum_df['id'].isin(blend_ids['id'].to_list())]
     blend_aums = blend_aums.reset_index(drop=True)
 
-    db_blend = pd.read_sql_query('SELECT * FROM aum_ts', engine)
-    db_blend = adj_dataframe(db_blend)
-    db_blend = rename_with_additional_string(db_blend, 'existing')
+    db_blend = pd.read_sql_query('SELECT * FROM aum_ts',
+                                 engine,
+                                 dtype={'id': np.int64, 'aum_ts_id': np.int64},
+                                 parse_dates=['asof_date'])
 
     merge_blend_df = blend_aums.merge(db_blend,
                                       how='left',
-                                      left_on=['id', 'asof_date'],
-                                      right_on=['id existing', 'asof_date existing'])
+                                      on=['id', 'asof_date'],
+                                      suffixes=('', ' existing'))
     # filter our better sources
-    merge_blend_df = merge_blend_df[~merge_blend_df['source existing'].isin(better_sources)]
+    merge_blend_df = merge_blend_df[~merge_blend_df['source existing'].isin(
+        better_sources)]
 
-    blend_new = merge_blend_df[merge_blend_df['aum_ts_id existing'].isnull()]
-    blend_breaks = merge_blend_df[~merge_blend_df['aum_ts_id existing'].isnull()]
-    blend_breaks = blend_breaks[blend_breaks['asset_value'] != blend_breaks['asset_value existing']]
+    blend_new = merge_blend_df[merge_blend_df['aum_ts_id'].isnull()]
+    blend_breaks = merge_blend_df[~merge_blend_df['aum_ts_id'].isnull()]
+    blend_breaks = blend_breaks[blend_breaks['asset_value']
+                                != blend_breaks['asset_value existing']]
     # we dont want to overwrite given source's aums
     blend_breaks = blend_breaks[blend_breaks['source existing'] != source]
 
-    old_blend_upload = blend_breaks[['id existing',
-                                     'asof_date existing',
+    old_blend_upload = blend_breaks[['id',
+                                     'asof_date',
                                     'asset_value existing',
-                                     'source existing']].rename(columns={'id existing': 'id',
-                                                                         'asof_date existing': 'asof_date',
-                                                                         'asset_value existing': 'asset_value',
+                                     'source existing']].rename(columns={'asset_value existing': 'asset_value',
                                                                          'source existing': 'source'})
 
     if len(old_blend_upload['id']) > 0:
-        db_blend_old = pd.read_sql_query('SELECT * FROM old_aum_ts', engine)
-        db_blend_old = adj_dataframe(db_blend_old)
-        db_blend_old = rename_with_additional_string(db_blend_old, 'existing')
+        db_blend_old = pd.read_sql_query('SELECT * FROM old_aum_ts',
+                                         engine,
+                                         dtype={'id': np.int64,
+                                                'aum_ts_id': np.int64},
+                                         parse_dates=['asof_date'])
 
         old_blend_upload = old_upload.merge(db_blend_old,
-                                            left_on=['id', 'asof_date', 'source'],
-                                            right_on=['id existing', 'asof_date existing', 'source existing'])
+                                            on=['id', 'asof_date', 'source'],
+                                            suffixes=('', ' existing'))
         # get new records to insert to old_aum_ts
-        old_blend_new_records = old_blend_upload[old_blend_upload['aum_ts_id existing'].isnull()]
+        old_blend_new_records = old_blend_upload[old_blend_upload['aum_ts_id'].isnull(
+        )]
         # get records to delete from old_aum_ts
-        old_blend_delete_records = old_blend_upload[~old_blend_upload['aum_ts_id existing'].isnull()]
+        old_blend_delete_records = old_blend_upload[~old_blend_upload['aum_ts_id'].isnull(
+        )]
         # delete the old records
-        old_blend_to_delete = old_blend_delete_records['aum_ts_id existing'].to_list()
+        old_blend_to_delete = old_blend_delete_records['aum_ts_id'].to_list()
         # delete the old records
-        batch_delete(old_blend_to_delete, 'old_aum_ts', 'aum_ts_id')
-
-        old_blend_final_upload = pd.concat([old_blend_new_records, old_blend_delete_records])
-        old_blend_final_upload = old_blend_final_upload[['id', 'asof_date', 'asset_value', 'source']]
-        old_blend_final_upload.to_sql('old_aum_ts', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
-        print(str(len(old_blend_new_records['id']))+' new rows inserted to old_aum_ts')
-        print(str(len(old_blend_delete_records['id']))+' rows deleted and updated to old_aum_ts')
+        sc.batch_delete(old_blend_to_delete, 'old_aum_ts', 'aum_ts_id')
+        old_blend_final_upload = pd.concat(
+            [old_blend_new_records, old_blend_delete_records])
+        old_blend_final_upload = old_blend_final_upload[[
+            'id', 'asof_date', 'asset_value', 'source']]
+        # index=False prevents failure on trying to insert the index column
+        old_blend_final_upload.to_sql(
+            'old_aum_ts', engine, if_exists='append', index=False)
+        print(str(len(old_blend_new_records['id'])
+                  )+' new rows inserted to old_aum_ts')
+        print(str(len(old_blend_delete_records['id'])) +
+              ' rows deleted and updated to old_aum_ts')
     else:
         print('no records to move to old_aum_ts')
 
-    to_delete = blend_breaks['aum_ts_id existing'].to_list()
-    #batch_delete(to_delete, 'aum_ts', 'aum_ts_id')
+    to_delete = blend_breaks['aum_ts_id'].to_list()
+    sc.batch_delete(to_delete, 'aum_ts', 'aum_ts_id')
     blend_upload = pd.concat([blend_new, blend_breaks])
     if len(blend_upload['id']) > 0:
         blend_upload.loc[:, 'source'] = source
-        blend_upload = blend_upload[['id', 'asof_date', 'asset_value', 'source']]
-        blend_upload.to_sql('aum_ts', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
+        blend_upload = blend_upload[[
+            'id', 'asof_date', 'asset_value', 'source']]
+        # index=False prevents failure on trying to insert the index column
+        blend_upload.to_sql('aum_ts', engine, if_exists='append', index=False)
         print(str(len(blend_new['id']))+' new rows inserted to aum_ts')
-        print(str(len(blend_breaks['id']))+' rows deleted and updated to aum_ts')
+        print(str(len(blend_breaks['id'])) +
+              ' rows deleted and updated to aum_ts')
     else:
         print('no records to update with blended method')
 
@@ -435,12 +465,13 @@ def get_returns(source, returns_df, better_sources):
     from sqlalchemy.engine import URL
     from sqlalchemy import create_engine
     connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
-    connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
+    connection_url = URL.create(
+        "mssql+pyodbc", query={"odbc_connect": connection_string})
     engine = create_engine(connection_url)
 
     # set this to false as mostly not used
     use_type = False
-    
+
     if type(better_sources) is not list:
         raise ValueError("""'better_sources' must be of type list """)
 
@@ -452,9 +483,9 @@ def get_returns(source, returns_df, better_sources):
         raise ValueError("""asof_date must be a column in returns_df """)
     if 'source' not in returns_df.columns.to_list():
         raise ValueError("""source must be a column in returns_df """)
-    if 'type'  in returns_df.columns.to_list():
+    if 'type' in returns_df.columns.to_list():
         use_type = True
-        
+
     quote_char = "'"
     sql_source = quote_char+source+quote_char
     # get list of funds that are missing returns or are currently using given source for returns
@@ -473,12 +504,11 @@ def get_returns(source, returns_df, better_sources):
     and e.external_source="""+sql_source+"""
     and f.blend_returns=0
     and e.id not in (select id from returns_ts where source!="""+sql_source+""")
-    """, engine, dtype = {'id': np.int64, 'external_id': np.int64})
-    ids = sc.adj_dataframe(ids)
+    """, engine, dtype={'id': np.int64})
 
     db = pd.read_sql_query('SELECT * FROM returns_ts', engine,
-                        parse_dates = ['asof_date'],
-                        dtype = {'id': np.int64, 'ret_ts_id': np.int64})
+                           parse_dates=['asof_date'],
+                           dtype={'id': np.int64, 'ret_ts_id': np.int64})
     db = sc.rename_with_additional_string(db, 'existing')
 
     print('starting process to remove inferior return sources')
@@ -487,14 +517,19 @@ def get_returns(source, returns_df, better_sources):
     # strip out sources that are higher in our hierarchy
     # filter out funds with blended returns
     # then delete the returns of funds with non-blended returns
-    other_sources = list(returns_df[~returns_df['id'].isin(ids['id'])]['id'].unique())
-    fund_check = pd.read_sql_query("""select * from funds""", engine, dtype = {'id': np.int64})
+    other_sources = list(
+        returns_df[~returns_df['id'].isin(ids['id'])]['id'].unique())
+    fund_check = pd.read_sql_query(
+        """select * from funds""", engine, dtype={'id': np.int64})
     fund_check = fund_check[fund_check['id'].isin(other_sources)]
     funds_to_delete = fund_check[fund_check['blend_returns'] == 0]
-    worse_returns = funds_to_delete.merge(db, how='left', left_on=['id'], right_on=['id existing'])
+    worse_returns = funds_to_delete.merge(
+        db, how='left', left_on=['id'], right_on=['id existing'])
     # strip out any sources we dont want to overwrite
-    worse_returns = worse_returns[~worse_returns['source existing'].isin(better_sources)]
-    worse_returns = worse_returns[['id existing', 'asof_date existing', 'return_value existing', 'source existing', 'ret_ts_id existing']]
+    worse_returns = worse_returns[~worse_returns['source existing'].isin(
+        better_sources)]
+    worse_returns = worse_returns[['id existing', 'asof_date existing',
+                                   'return_value existing', 'source existing', 'ret_ts_id existing']]
     worse_returns.to_csv(source+"_backup.csv")
 
     # current process is to move old returns out of the primary returns database (returns_ts) and into old_returns_ts
@@ -510,8 +545,8 @@ def get_returns(source, returns_df, better_sources):
 
     if len(old_upload['id']) > 0:
         db_old = pd.read_sql_query('SELECT * FROM old_returns_ts', engine,
-                                   parse_dates = ['asof_date'],
-                                   dtype = {'id': np.int64, 'ret_ts_id': np.int64})
+                                   parse_dates=['asof_date'],
+                                   dtype={'id': np.int64, 'ret_ts_id': np.int64})
         db_old = sc.rename_with_additional_string(db_old, 'existing')
         # merge on source here to ensure we are retaining records from various sources in case we need to fallback
         old_upload = old_upload.merge(db_old,
@@ -521,17 +556,23 @@ def get_returns(source, returns_df, better_sources):
         # get new records to insert to old_returns_ts
         old_new_records = old_upload[old_upload['ret_ts_id existing'].isnull()]
         # get records to delete from old_returns_ts
-        old_delete_records = old_upload[~old_upload['ret_ts_id existing'].isnull()]
+        old_delete_records = old_upload[~old_upload['ret_ts_id existing'].isnull(
+        )]
         # delete the old records
         old_to_delete = old_delete_records['ret_ts_id existing'].to_list()
         # delete the old records
         sc.batch_delete(old_to_delete, 'old_returns_ts', 'ret_ts_id')
         old_upload_combo = pd.concat([old_new_records, old_delete_records])
-        old_upload_combo = old_upload_combo[['id', 'asof_date', 'return_value', 'source']]
+        old_upload_combo = old_upload_combo[[
+            'id', 'asof_date', 'return_value', 'source']]
 
-        old_upload_combo.to_sql('old_returns_ts', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
-        print('   '+str(len(old_new_records['id']))+' new rows inserted to old_returns_ts')
-        print('   '+str(len(old_delete_records['id']))+' rows deleted and updated to old_returns_ts')
+        # index=False prevents failure on trying to insert the index column
+        old_upload_combo.to_sql('old_returns_ts', engine,
+                                if_exists='append', index=False)
+        print('   '+str(len(old_new_records['id'])) +
+              ' new rows inserted to old_returns_ts')
+        print('   '+str(len(old_delete_records['id'])) +
+              ' rows deleted and updated to old_returns_ts')
     else:
         print('   no records to move to old_returns_ts')
 
@@ -539,7 +580,8 @@ def get_returns(source, returns_df, better_sources):
     to_delete = worse_returns['ret_ts_id existing'].to_list()
     sc.batch_delete(to_delete, 'returns_ts', 'ret_ts_id')
 
-    print('   '+str(len(worse_returns['ret_ts_id existing']))+' inferior rows of return sources deleted from returns_ts')
+    print('   '+str(len(worse_returns['ret_ts_id existing'])) +
+          ' inferior rows of return sources deleted from returns_ts')
 
     print("""finished process to remove inferior return sources
 
@@ -562,14 +604,14 @@ def get_returns(source, returns_df, better_sources):
     and e.external_source="""+sql_source+"""
     and f.blend_returns=0
     and e.id not in (select id from returns_ts where source!="""+sql_source+""")
-    """, engine, dtype = {'id': np.int64, 'external_id': np.int64})
+    """, engine, dtype={'id': np.int64})
     ids = sc.adj_dataframe(ids)
     rets_ids = returns_df[returns_df['id'].isin(ids['id'].to_list())]
     rets_ids = rets_ids.reset_index(drop=True)
 
     db = pd.read_sql_query('SELECT * FROM returns_ts', engine,
-                           parse_dates = ['asof_date'],
-                           dtype = {'id': np.int64, 'ret_ts_id': np.int64})
+                           parse_dates=['asof_date'],
+                           dtype={'id': np.int64, 'ret_ts_id': np.int64})
     db = sc.rename_with_additional_string(db, 'existing')
 
     # check which funds have new returns or return differences
@@ -598,9 +640,9 @@ def get_returns(source, returns_df, better_sources):
                                                              'source existing': 'source'})
 
     if len(old_upload['id']) > 0:
-        db_old = pd.read_sql_query('SELECT * FROM old_returns_ts', engine, 
-                           parse_dates = ['asof_date'],
-                           dtype = {'id': np.int64, 'ret_ts_id': np.int64})
+        db_old = pd.read_sql_query('SELECT * FROM old_returns_ts', engine,
+                                   parse_dates=['asof_date'],
+                                   dtype={'id': np.int64, 'ret_ts_id': np.int64})
         db_old = sc.rename_with_additional_string(db_old, 'existing')
         # merge on source here to ensure we are retaining records from various sources in case we need to fallback
         old_upload = old_upload.merge(db_old,
@@ -610,16 +652,22 @@ def get_returns(source, returns_df, better_sources):
         # get new records to insert to old_returns_ts
         old_new_records = old_upload[old_upload['ret_ts_id existing'].isnull()]
         # get records to delete from old_returns_ts
-        old_delete_records = old_upload[~old_upload['ret_ts_id existing'].isnull()]
+        old_delete_records = old_upload[~old_upload['ret_ts_id existing'].isnull(
+        )]
         # delete the old records
         old_to_delete = old_delete_records['ret_ts_id existing'].to_list()
         # delete the old records
         sc.batch_delete(old_to_delete, 'old_returns_ts', 'ret_ts_id')
         old_upload_combo = pd.concat([old_new_records, old_delete_records])
-        old_upload_combo = old_upload_combo[['id', 'asof_date', 'return_value', 'source']]
-        old_upload_combo.to_sql('old_returns_ts', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
-        print('   '+str(len(old_new_records['id']))+' new rows inserted to old_returns_ts')
-        print('   '+str(len(old_delete_records['id']))+' rows deleted and updated to old_returns_ts')
+        old_upload_combo = old_upload_combo[[
+            'id', 'asof_date', 'return_value', 'source']]
+        # index=False prevents failure on trying to insert the index column
+        old_upload_combo.to_sql('old_returns_ts', engine,
+                                if_exists='append', index=False)
+        print('   '+str(len(old_new_records['id'])) +
+              ' new rows inserted to old_returns_ts')
+        print('   '+str(len(old_delete_records['id'])) +
+              ' rows deleted and updated to old_returns_ts')
     else:
         print('   no records to move to old_returns_ts')
 
@@ -635,10 +683,12 @@ def get_returns(source, returns_df, better_sources):
         upload = upload[['id', 'asof_date', 'return_value', 'source']]
     elif use_type == True:
         upload = upload[['id', 'asof_date', 'return_value', 'source', 'type']]
-        
-    upload.to_sql('returns_ts', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
+
+    # index=False prevents failure on trying to insert the index column
+    upload.to_sql('returns_ts', engine, if_exists='append', index=False)
     print('   '+str(len(new['id']))+' new rows inserted to returns_ts')
-    print('   '+str(len(breaks['id']))+' rows deleted and updated to returns_ts')
+    print('   '+str(len(breaks['id'])) +
+          ' rows deleted and updated to returns_ts')
 
     print("""finished process to update non-blended returns
 
@@ -652,14 +702,14 @@ def get_returns(source, returns_df, better_sources):
     where e.mapping_status='Live'
     and e.is_shareclass=0
     and e.external_source="""+sql_source+"""
-    and f.blend_returns=1""", engine, dtype = {'id': np.int64, 'external_id': np.int64})
+    and f.blend_returns=1""", engine, dtype={'id': np.int64})
     # instead of inner mergeing here, we can just use isin to filter only on funds with blended returns
     blend_rets = returns_df[returns_df['id'].isin(blend_ids['id'].to_list())]
     blend_rets = blend_rets.reset_index(drop=True)
 
-    db_blend = pd.read_sql_query('SELECT * FROM returns_ts', engine, 
-                           parse_dates = ['asof_date'],
-                           dtype = {'id': np.int64, 'ret_ts_id': np.int64})
+    db_blend = pd.read_sql_query('SELECT * FROM returns_ts', engine,
+                                 parse_dates=['asof_date'],
+                                 dtype={'id': np.int64, 'ret_ts_id': np.int64})
     db_blend = sc.rename_with_additional_string(db_blend, 'existing')
 
     merge_blend_df = blend_rets.merge(db_blend,
@@ -668,10 +718,13 @@ def get_returns(source, returns_df, better_sources):
                                       right_on=['id existing', 'asof_date existing'])
     # Since given source is the top source in returns hierarchy, we dont have to strip out any returns sources here
     # in other words, delete any other source of return
-    merge_blend_df = merge_blend_df[~merge_blend_df['source existing'].isin(better_sources)]
+    merge_blend_df = merge_blend_df[~merge_blend_df['source existing'].isin(
+        better_sources)]
     blend_new = merge_blend_df[merge_blend_df['ret_ts_id existing'].isnull()]
-    blend_breaks = merge_blend_df[~merge_blend_df['ret_ts_id existing'].isnull()]
-    blend_breaks = blend_breaks[blend_breaks['return_value'] != blend_breaks['return_value existing']]
+    blend_breaks = merge_blend_df[~merge_blend_df['ret_ts_id existing'].isnull(
+    )]
+    blend_breaks = blend_breaks[blend_breaks['return_value']
+                                != blend_breaks['return_value existing']]
 
     # current process is to move old returns out of the primary returns database (returns_ts) and into ld_returns_ts
     # we do this as a backup in case any funds returns need to be restored
@@ -685,28 +738,39 @@ def get_returns(source, returns_df, better_sources):
                                                                          'source existing': 'source'})
 
     if len(old_blend_upload['id']) > 0:
-        db_old_blend = pd.read_sql_query('SELECT * FROM old_returns_ts', engine, 
-                           parse_dates = ['asof_date'],
-                           dtype = {'id': np.int64, 'ret_ts_id': np.int64})
-        db_old_blend = sc.rename_with_additional_string(db_old_blend, 'existing')
+        db_old_blend = pd.read_sql_query('SELECT * FROM old_returns_ts', engine,
+                                         parse_dates=['asof_date'],
+                                         dtype={'id': np.int64, 'ret_ts_id': np.int64})
+        db_old_blend = sc.rename_with_additional_string(
+            db_old_blend, 'existing')
         # merge on source to keep all previous versions of each source
         old_blend_upload = old_blend_upload.merge(db_old_blend,
-                                                  left_on=['id', 'asof_date', 'source'],
+                                                  left_on=[
+                                                      'id', 'asof_date', 'source'],
                                                   right_on=['id existing', 'asof_date existing', 'source existing'])
         # get new records to insert to old_returns_ts
-        old_blend_new_records = old_blend_upload[old_blend_upload['ret_ts_id existing'].isnull()]
+        old_blend_new_records = old_blend_upload[old_blend_upload['ret_ts_id existing'].isnull(
+        )]
         # get records to delete from old_returns_ts
-        old_blend_delete_records = old_blend_upload[~old_blend_upload['ret_ts_id existing'].isnull()]
+        old_blend_delete_records = old_blend_upload[~old_blend_upload['ret_ts_id existing'].isnull(
+        )]
         # delete the old records
-        old_blend_to_delete = old_blend_delete_records['ret_ts_id existing'].to_list()
+        old_blend_to_delete = old_blend_delete_records['ret_ts_id existing'].to_list(
+        )
         # delete the old records
         sc.batch_delete(old_blend_to_delete, 'old_returns_ts', 'ret_ts_id')
 
-        old_blend_upload_combo = pd.concat([old_blend_new_records, old_blend_delete_records])
-        old_blend_upload_combo = old_blend_upload_combo[['id', 'asof_date', 'return_value', 'source']]
-        old_blend_upload_combo.to_sql('old_returns_ts', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
-        print('   '+str(len(old_blend_new_records['id']))+' new rows inserted to old_returns_ts')
-        print('   '+str(len(old_blend_delete_records['id']))+' rows deleted and updated to old_returns_ts')
+        old_blend_upload_combo = pd.concat(
+            [old_blend_new_records, old_blend_delete_records])
+        old_blend_upload_combo = old_blend_upload_combo[[
+            'id', 'asof_date', 'return_value', 'source']]
+        # index=False prevents failure on trying to insert the index column
+        old_blend_upload_combo.to_sql(
+            'old_returns_ts', engine, if_exists='append', index=False)
+        print(
+            '   '+str(len(old_blend_new_records['id']))+' new rows inserted to old_returns_ts')
+        print('   '+str(len(old_blend_delete_records['id'])) +
+              ' rows deleted and updated to old_returns_ts')
     else:
         print('   no records to move to old_returns_ts')
 
@@ -720,12 +784,18 @@ def get_returns(source, returns_df, better_sources):
     if len(blend_upload['id']) > 0:
         blend_upload.loc[:, 'source'] = source
         if use_type == False:
-            blend_upload = blend_upload[['id', 'asof_date', 'return_value', 'source']]
+            blend_upload = blend_upload[[
+                'id', 'asof_date', 'return_value', 'source']]
         elif use_type == True:
-            blend_upload = blend_upload[['id', 'asof_date', 'return_value', 'source', 'type']]        
-        blend_upload.to_sql('returns_ts', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
-        print('   '+str(len(blend_new['id']))+' new rows inserted to returns_ts')
-        print('   '+str(len(blend_breaks['id']))+' rows deleted and updated to returns_ts')
+            blend_upload = blend_upload[[
+                'id', 'asof_date', 'return_value', 'source', 'type']]
+        # index=False prevents failure on trying to insert the index column
+        blend_upload.to_sql('returns_ts', engine,
+                            if_exists='append', index=False)
+        print('   '+str(len(blend_new['id'])) +
+              ' new rows inserted to returns_ts')
+        print('   '+str(len(blend_breaks['id'])) +
+              ' rows deleted and updated to returns_ts')
     else:
         print('   no records to update with blended method')
     print("""finished process to update blended returns
@@ -761,8 +831,9 @@ def get_fees(source, fees_df, better_sources):
     from sqlalchemy.engine import URL
     from sqlalchemy import create_engine
     connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
-    connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
-    
+    connection_url = URL.create(
+        "mssql+pyodbc", query={"odbc_connect": connection_string})
+
     if type(better_sources) is not list:
         raise ValueError("""'better_sources' must be of type list """)
     if 'id' not in fees_df.columns.to_list():
@@ -774,10 +845,13 @@ def get_fees(source, fees_df, better_sources):
     if 'source' not in fees_df.columns.to_list():
         raise ValueError("""source must be a column in fees_df """)
 
-    fees_df = fees_df.dropna(subset=['management_fee', 'performance_fee'], how='all').copy()
+    fees_df = fees_df.dropna(
+        subset=['management_fee', 'performance_fee'], how='all').copy()
 
-    fees_df.loc[:, 'management_fee'] = fees_df['management_fee'].round(decimals=8)
-    fees_df.loc[:, 'performance_fee'] = fees_df['performance_fee'].round(decimals=8)
+    fees_df.loc[:, 'management_fee'] = fees_df['management_fee'].round(
+        decimals=8)
+    fees_df.loc[:, 'performance_fee'] = fees_df['performance_fee'].round(
+        decimals=8)
 
     quote_char = "'"
     ids = pd.read_sql_query("""
@@ -795,24 +869,26 @@ def get_fees(source, fees_df, better_sources):
     and e.external_source="""+quote_char+source+quote_char+"""
     and f.id not in (
         select id from fees where source!="""+quote_char+source+quote_char+""")
-                          """, engine)
-    ids = adj_dataframe(ids)
+                          """, engine, dtype={'id': np.int64})
     # check to only update funds with existing fees from given source or missing fees
     assets_id = fees_df[fees_df['id'].isin(ids['id'].to_list())]
     assets_id = assets_id.reset_index(drop=True)
 
-    db = pd.read_sql_query('SELECT * FROM fees ', engine)
-    db = adj_dataframe(db)
+    db = pd.read_sql_query('SELECT * FROM fees ',
+                           engine, dtype={'id': np.int64})
     db = rename_with_additional_string(db, 'existing')
 
     # check which internal IDs are in the fees_df but not in the list of funds whose fees we should be updating
     # these are funds with other sources in the database
     # strip out sources that are higher in our hierarchy
-    other_sources = list(fees_df[~fees_df['id'].isin(ids['id'])]['id'].unique())
+    other_sources = list(
+        fees_df[~fees_df['id'].isin(ids['id'])]['id'].unique())
     fund_check = pd.read_sql_query("""select * from funds""", engine)
     fund_check = fund_check[fund_check['id'].isin(other_sources)]
-    funds_to_delete = fund_check.merge(db, how='left', left_on=['id'], right_on=['id existing'])
-    worse_fee_sources = funds_to_delete[~funds_to_delete['source existing'].isin(better_sources)]
+    funds_to_delete = fund_check.merge(
+        db, how='left', left_on=['id'], right_on=['id existing'])
+    worse_fee_sources = funds_to_delete[~funds_to_delete['source existing'].isin(
+        better_sources)]
 
     worse_fee_sources = worse_fee_sources[['id existing',
                                            'management_fee existing',
@@ -843,14 +919,13 @@ def get_fees(source, fees_df, better_sources):
     and e.external_source="""+quote_char+source+quote_char+"""
     and f.id not in (
         select id from fees where source!="""+quote_char+source+quote_char+""")
-    """, engine)
-    ids = adj_dataframe(ids)
+    """, engine, dtype={'id': np.int64})
     # check to only update funds with existing source's fees or missing fees
     assets_id = fees_df[fees_df['id'].isin(ids['id'].to_list())]
     assets_id = assets_id.reset_index(drop=True)
 
-    db = pd.read_sql_query('SELECT * FROM fees ', engine)
-    db = adj_dataframe(db)
+    db = pd.read_sql_query('SELECT * FROM fees ',
+                           engine, dtype={'id': np.int64})
     # round to match existing df
     db['management_fee'] = db['management_fee'].round(decimals=8)
     db['performance_fee'] = db['performance_fee'].round(decimals=8)
@@ -894,10 +969,14 @@ def get_fees(source, fees_df, better_sources):
         df.reset_index(drop=True, inplace=True)
         return df
 
-    perf_check = updated_records(breaks, 'performance_fee', 'performance_fee existing')
-    mgmt_check = updated_records(breaks, 'management_fee', 'management_fee existing')
-    hwm_check = updated_records(breaks, 'high_water_mark', 'high_water_mark existing')
-    hurdle_check = updated_records(breaks, 'hurdle_rate', 'hurdle_rate existing')
+    perf_check = updated_records(
+        breaks, 'performance_fee', 'performance_fee existing')
+    mgmt_check = updated_records(
+        breaks, 'management_fee', 'management_fee existing')
+    hwm_check = updated_records(
+        breaks, 'high_water_mark', 'high_water_mark existing')
+    hurdle_check = updated_records(
+        breaks, 'hurdle_rate', 'hurdle_rate existing')
     final_breaks = pd.concat([perf_check, mgmt_check, hwm_check, hurdle_check])
     final_breaks = final_breaks.drop_duplicates(keep='first')
     final_breaks = final_breaks.reset_index(drop=True)
@@ -910,8 +989,10 @@ def get_fees(source, fees_df, better_sources):
     upload.loc[:, 'source'] = source
     upload = upload.drop_duplicates(keep='first')
 
-    upload = upload[['id', 'management_fee', 'performance_fee', 'hurdle_rate', 'high_water_mark', 'source']]
-    upload.to_sql('fees', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
+    upload = upload[['id', 'management_fee', 'performance_fee',
+                     'hurdle_rate', 'high_water_mark', 'source']]
+    # index=False prevents failure on trying to insert the index column
+    upload.to_sql('fees', engine, if_exists='append', index=False)
     print(str(len(upload['id']))+' rows inserted')
 
 
@@ -965,28 +1046,33 @@ def get_liquidity(source, liquidity_df, better_sources):
     from sqlalchemy.engine import URL
     from sqlalchemy import create_engine
     connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
-    connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
-    
+    connection_url = URL.create(
+        "mssql+pyodbc", query={"odbc_connect": connection_string})
+
     if type(better_sources) is not list:
         raise ValueError("""'better_sources' must be of type list """)
     if 'id' not in liquidity_df.columns.to_list():
         raise ValueError("""id must be a column in liquidity_df """)
     if 'redemption_notice_days' not in liquidity_df.columns.to_list():
-        raise ValueError("""redemption_notice_days must be a column in liquidity_df """)
+        raise ValueError(
+            """redemption_notice_days must be a column in liquidity_df """)
     if 'redemption_frequency' not in liquidity_df.columns.to_list():
-        raise ValueError("""redemption_frequency must be a column in liquidity_df """)
+        raise ValueError(
+            """redemption_frequency must be a column in liquidity_df """)
     if 'redemption_gate' not in liquidity_df.columns.to_list():
-        raise ValueError("""redemption_gate must be a column in liquidity_df """)
+        raise ValueError(
+            """redemption_gate must be a column in liquidity_df """)
     if 'lock_up' not in liquidity_df.columns.to_list():
         raise ValueError("""lock_up must be a column in liquidity_df """)
     if 'subscription_frequency' not in liquidity_df.columns.to_list():
-        raise ValueError("""subscription_frequency must be a column in liquidity_df """)
+        raise ValueError(
+            """subscription_frequency must be a column in liquidity_df """)
     if 'source' not in liquidity_df.columns.to_list():
         raise ValueError("""source must be a column in liquidity_df """)
-    
+
     liquidity_df = liquidity_df.dropna(subset=['redemption_notice_days',
-                                               'redemption_frequency','redemption_gate',
-                                               'lock_up','subscription_frequency'], how='all').copy()
+                                               'redemption_frequency', 'redemption_gate',
+                                               'lock_up', 'subscription_frequency'], how='all').copy()
 
     quote_char = "'"
     ids = pd.read_sql_query("""
@@ -1011,8 +1097,7 @@ def get_liquidity(source, liquidity_df, better_sources):
     and e.external_source="""+quote_char+source+quote_char+"""
     and f.id not in (
         select id from fund_liquidity where source!="""+quote_char+source+quote_char+""")
-                          """, engine)
-    ids = adj_dataframe(ids)
+                          """, engine, dtype={'id': np.int64})
     # check to only update funds with existing fund_liquidity from given source or missing fund_liquidity
     assets_id = liquidity_df[liquidity_df['id'].isin(ids['id'].to_list())]
     assets_id = assets_id.reset_index(drop=True)
@@ -1024,21 +1109,24 @@ def get_liquidity(source, liquidity_df, better_sources):
     # check which internal IDs are in the liquidity_df but not in the list of funds whose fund_liquidity we should be updating
     # these are funds with other sources in the database
     # strip out sources that are higher in our hierarchy
-    other_sources = list(liquidity_df[~liquidity_df['id'].isin(ids['id'])]['id'].unique())
+    other_sources = list(
+        liquidity_df[~liquidity_df['id'].isin(ids['id'])]['id'].unique())
     fund_check = pd.read_sql_query("""select * from funds""", engine)
     fund_check = fund_check[fund_check['id'].isin(other_sources)]
-    funds_to_delete = fund_check.merge(db, how='left', left_on=['id'], right_on=['id existing'])
-    worse_liq_sources = funds_to_delete[~funds_to_delete['source existing'].isin(better_sources)]
+    funds_to_delete = fund_check.merge(
+        db, how='left', left_on=['id'], right_on=['id existing'])
+    worse_liq_sources = funds_to_delete[~funds_to_delete['source existing'].isin(
+        better_sources)]
 
     worse_liq_sources = worse_liq_sources[['id existing',
                                            'id_record_number existing']]
-
 
     # delete the old records
     to_delete = worse_liq_sources['id_record_number existing'].to_list()
     batch_delete(to_delete, 'fund_liquidity', 'id_record_number')
 
-    print(str(len(to_delete))+' rows of inferior fund_liquidity sources deleted from fund_liquidity table')
+    print(str(len(to_delete)) +
+          ' rows of inferior fund_liquidity sources deleted from fund_liquidity table')
 
     ids = pd.read_sql_query("""
     select e.id,e.external_id 
@@ -1055,15 +1143,13 @@ def get_liquidity(source, liquidity_df, better_sources):
     and e.external_source="""+quote_char+source+quote_char+"""
     and f.id not in (
         select id from fund_liquidity where source!="""+quote_char+source+quote_char+""")
-    """, engine)
-    ids = adj_dataframe(ids)
+    """, engine, dtype={'id': np.int64})
     # check to only update funds with existing source's fund_liquidity or missing fund_liquidity
     assets_id = liquidity_df[liquidity_df['id'].isin(ids['id'].to_list())]
     assets_id = assets_id.reset_index(drop=True)
 
-    db = pd.read_sql_query('SELECT * FROM fund_liquidity ', engine)
+    db = pd.read_sql_query('SELECT * FROM fund_liquidity ', engine, dtype={'id': np.int64})
     db = adj_dataframe(db)
-
 
     db = rename_with_additional_string(db, 'existing')
 
@@ -1074,8 +1160,7 @@ def get_liquidity(source, liquidity_df, better_sources):
     merge_df = merge_df[~merge_df['source existing'].isin(better_sources)]
     new = merge_df[merge_df['id_record_number existing'].isnull()]
     breaks = merge_df[~merge_df['id_record_number existing'].isnull()].copy()
-    
-    
+
     def updated_records(df, colname1, colname2):
         """
         Evalautes a dataframe across colname1 and colname2 to ensure that:
@@ -1101,42 +1186,46 @@ def get_liquidity(source, liquidity_df, better_sources):
         """
         df = df[~df[colname1].isnull() | ~df[colname2].isnull()]
         df = df[df[colname1] != df[colname2]]
-        df.reset_index(drop = True, inplace = True)
+        df.reset_index(drop=True, inplace=True)
         return df
-    
-	
-    red_not_check =  updated_records(breaks, 'redemption_notice_days', 'redemption_notice_days existing')
-    red_freq_check =  updated_records(breaks, 'redemption_frequency', 'redemption_frequency existing') 
-    red_gate_check = updated_records(breaks, 'redemption_gate', 'redemption_gate existing') 
-    lu_check = updated_records(breaks, 'lock_up', 'lock_up existing') 
-    sub_check = updated_records(breaks, 'subscription_frequency', 'subscription_frequency existing') 
-	
-    final_breaks = pd.concat([red_not_check, red_freq_check, red_gate_check, lu_check, sub_check])
-    final_breaks = final_breaks.reset_index(drop = True)
+
+    red_not_check = updated_records(
+        breaks, 'redemption_notice_days', 'redemption_notice_days existing')
+    red_freq_check = updated_records(
+        breaks, 'redemption_frequency', 'redemption_frequency existing')
+    red_gate_check = updated_records(
+        breaks, 'redemption_gate', 'redemption_gate existing')
+    lu_check = updated_records(breaks, 'lock_up', 'lock_up existing')
+    sub_check = updated_records(
+        breaks, 'subscription_frequency', 'subscription_frequency existing')
+
+    final_breaks = pd.concat(
+        [red_not_check, red_freq_check, red_gate_check, lu_check, sub_check])
+    final_breaks = final_breaks.reset_index(drop=True)
 
     to_delete = final_breaks['id_record_number existing'].to_list()
     # delete the old records
     batch_delete(to_delete, 'fund_liquidity', 'id_record_number')
 
-    #since there can be breaks across multiple fields, keep only the unique records after dropping existing columns
+    # since there can be breaks across multiple fields, keep only the unique records after dropping existing columns
     final_breaks = final_breaks[['id', 'redemption_notice_days', 'redemption_frequency',
                                  'redemption_gate', 'lock_up', 'subscription_frequency', 'source']]
     final_breaks = final_breaks.drop_duplicates(keep='first')
-    
+
     upload = pd.concat([new, final_breaks])
     upload.loc[:, 'source'] = source
 
     upload = upload[['id', 'redemption_notice_days', 'redemption_frequency', 'redemption_gate',
                      'lock_up', 'subscription_frequency', 'source']]
-    upload.to_sql('fund_liquidity', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
+    # index=False prevents failure on trying to insert the index column
+    upload.to_sql('fund_liquidity', engine, if_exists='append', index=False)
     print(str(len(upload['id']))+' rows deleted and updated')
- 
 
 
 def send_email_with_attachment(receiver_email, sender_email, subject, body, attachment_file):
     """
     This sends an email with given subject, body, and attachment
-    
+
     Parameters
     ----------
     receiver_email : string
@@ -1149,7 +1238,7 @@ def send_email_with_attachment(receiver_email, sender_email, subject, body, atta
         body of the email
     attachment_file : string
         filename that will be attached
-    
+
     -----
     Sample usage: 
     send_email_with_attachment("scfundriskmonitor@silvercreekcapital.com",
@@ -1164,7 +1253,8 @@ def send_email_with_attachment(receiver_email, sender_email, subject, body, atta
     from email.mime.text import MIMEText
     from email.mime.base import MIMEBase
     from email import encoders
-    import sys, traceback
+    import sys
+    import traceback
 
     port = 25
     smtp_server = "webmail.silvercreekcapital.com"
@@ -1183,7 +1273,7 @@ def send_email_with_attachment(receiver_email, sender_email, subject, body, atta
         part = MIMEBase("application", "octet-stream")
         part.set_payload(attachment.read())
 
-    # Encode file in ASCII characters to send by email    
+    # Encode file in ASCII characters to send by email
     encoders.encode_base64(part)
 
     # Add header as key/value pair to attachment part
@@ -1194,10 +1284,11 @@ def send_email_with_attachment(receiver_email, sender_email, subject, body, atta
 
     # Add attachment to message and convert message to string
     message.attach(part)
-    sobj=smtplib.SMTP(smtp_server, port)
+    sobj = smtplib.SMTP(smtp_server, port)
     sobj.ehlo()
     sobj.sendmail(sender_email, receiver_email, message.as_string())
-    
+
+
 def convert_lockup(row):
     """
     evaluates a lockup record to insert to the database
@@ -1214,7 +1305,7 @@ def convert_lockup(row):
     true, false, or null depending on input
     """
     import numpy as np
-    if type(row)==str:
+    if type(row) == str:
         row = row.lower()
         if row in ['no', 'none', 'no lockup', 'no lock up' 'no lock']:
             return False
@@ -1222,12 +1313,13 @@ def convert_lockup(row):
             return np.nan
         else:
             return True
-    elif (row in [None]) or (np.isnan(row) == True): #np.nan not comparable to nan row
-        return np.nan 
+    elif (row in [None]) or (np.isnan(row) == True):  # np.nan not comparable to nan row
+        return np.nan
     else:
-        raise ValueError('the lockup: '+str(row)+' is unnaccounted for in the convert_lockup function. Please investigate.')
+        raise ValueError('the lockup: '+str(row) +
+                         ' is unnaccounted for in the convert_lockup function. Please investigate.')
 
-        
+
 def pct_returns_from_levels(df):
     """
     Returns a dataframe whose levels (values) have been converted to percentage change
@@ -1243,14 +1335,14 @@ def pct_returns_from_levels(df):
         a dataframe with percentage returns
     """
     # select only 'number' dtypes to omit any datetimes
-    df_temp = df.select_dtypes(include=['number']).pct_change(1).merge(df['asof_date'], left_index=True, right_index=True)
+    df_temp = df.select_dtypes(include=['number']).pct_change(
+        1).merge(df['asof_date'], left_index=True, right_index=True)
     df_temp.drop(index=0, inplace=True)
     date_col = df_temp.pop('asof_date')
     df_temp.insert(0, 'asof_date', date_col)  # re-insert as first column
     df_temp.reset_index(inplace=True, drop=True)
     df_temp = df_temp
     return df_temp
-
 
 
 def get_status(df, source_name, better_sources_list):
@@ -1265,7 +1357,7 @@ def get_status(df, source_name, better_sources_list):
         the name of the source for the status records inside df
     better_sources_list: list
         a list containing sources we don't want to overwrite
-    
+
     Returns
     -------
     status_update: dataframe
@@ -1278,7 +1370,8 @@ def get_status(df, source_name, better_sources_list):
     from pyodbc import connect
 
     connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
-    connection_url = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
+    connection_url = URL.create(
+        "mssql+pyodbc", query={"odbc_connect": connection_string})
     engine = create_engine(connection_url)
     conn = connect(connection_string)
 
@@ -1287,57 +1380,65 @@ def get_status(df, source_name, better_sources_list):
     if 'id' not in df.columns:
         raise ValueError('df must have internal IDs')
     if 'current_status' not in df.columns:
-        raise ValueError('df must have current_status column')        
+        raise ValueError('df must have current_status column')
     if 'included' not in df.columns:
         raise ValueError('df must have included column')
     if 'included_source' not in df.columns:
-        df.loc[:, 'included_source'] = source_name    
+        df.loc[:, 'included_source'] = source_name
     if 'status_source' not in df.columns:
-        df.loc[:, 'status_source'] = source_name        
+        df.loc[:, 'status_source'] = source_name
 
     fs = pd.read_sql_query("""select * from fund_status""", engine)
 
-    status_check = df.merge(fs, on = 'id', suffixes = ('', ' existing'), how = 'left')
+    status_check = df.merge(
+        fs, on='id', suffixes=('', ' existing'), how='left')
 
-    update = status_check[status_check['current_status'] != status_check['current_status existing']].copy()
+    update = status_check[status_check['current_status']
+                          != status_check['current_status existing']].copy()
     # always update 'Unknown' status
     update1 = update[update['current_status existing'] == 'Unknown'].copy()
-    update1 = update1.drop(columns = ['included', 'included_source'])
+    update1 = update1.drop(columns=['included', 'included_source'])
     # set the old included data as new to preseve it
-    update1 = update1.rename(columns = {'included existing': 'included',
-                                        'included_source existing': 'included_source'})
+    update1 = update1.rename(columns={'included existing': 'included',
+                                      'included_source existing': 'included_source'})
 
     # exclude albourne or manual as the source
     # this would also include new records
-    update2 = update[~update['status_source existing'].isin(better_sources_list)].copy()
-    #fill missing records with data from df (these will be nulls)
-    update2.loc[:, 'included existing'] = update2['included existing'].fillna(update2['included'])
-    update2.loc[:, 'included_source existing'] = update2['included_source existing'].fillna(update2['included_source'])
-    update2 = update2.drop(columns = ['included', 'included_source'])
+    update2 = update[~update['status_source existing'].isin(
+        better_sources_list)].copy()
+    # fill missing records with data from df (these will be nulls)
+    update2.loc[:, 'included existing'] = update2['included existing'].fillna(
+        update2['included'])
+    update2.loc[:, 'included_source existing'] = update2['included_source existing'].fillna(
+        update2['included_source'])
+    update2 = update2.drop(columns=['included', 'included_source'])
     # set the old included data as new to preseve it
-    update2 = update2.rename(columns = {'included existing': 'included',
-                                        'included_source existing': 'included_source'})
-    
+    update2 = update2.rename(columns={'included existing': 'included',
+                                      'included_source existing': 'included_source'})
+
     # drop any funds we already caught to prevent dupes
     update1 = update1[~update1['id'].isin(update2['id'])]
 
     status_update = pd.concat([update1, update2])
     status_update = status_update.reset_index(drop=True)
 
-    if len(status_update['id'])>0:
-        
-        sub_list_to_delete = ','.join((map(str, status_update['id'].to_list())))
+    if len(status_update['id']) > 0:
+
+        sub_list_to_delete = ','.join(
+            (map(str, status_update['id'].to_list())))
         sub_list_to_delete = '('+sub_list_to_delete+')'
-        cursor.execute(''' DELETE FROM fund_status where id in '''+sub_list_to_delete)
+        cursor.execute(
+            ''' DELETE FROM fund_status where id in '''+sub_list_to_delete)
         conn.commit()
 
         print(str(len(status_update['id']))+' no. records deleted')
         status_update[['id',
-                             'current_status',
-                             'status_source',
-                             'included',
-                             'included_source']].to_sql('fund_status', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
-        print(str(len(status_update['id']))+' funds have had their status updated')
+                       'current_status',
+                       'status_source',
+                       'included',
+                       'included_source']].to_sql('fund_status', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
+        print(str(len(status_update['id'])) +
+              ' funds have had their status updated')
     else:
         print('no funds need updating')
     return status_update
