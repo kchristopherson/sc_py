@@ -1378,6 +1378,7 @@ def get_status(df, source_name, better_sources_list):
         "mssql+pyodbc", query={"odbc_connect": connection_string})
     engine = create_engine(connection_url)
     conn = connect(connection_string)
+    cursor = conn.cursor()
 
     # include manual here as that is how we override. we dont want to override these records
     better_sources_list = better_sources_list + ['manual']
