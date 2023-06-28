@@ -236,6 +236,9 @@ def get_assets(source, aum_df, better_sources):
     # we do this as a backup in case any funds aums need to be restored
     # this only has to be done on the breaks df because that represents the aums we're about to delete
     old_upload = worse_aums.copy()
+    # to avoid confusion with which ts_id to delete
+    old_upload = old_upload.drop(columns = 'aum_ts_id')
+
     if len(old_upload['id']) > 0:
         db_old = pd.read_sql_query('SELECT * FROM old_aum_ts',
                                    engine, dtype={'id': np.int64,
