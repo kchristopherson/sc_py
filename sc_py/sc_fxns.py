@@ -168,6 +168,8 @@ def get_assets(source, aum_df, better_sources):
     import numpy as np
     from sqlalchemy.engine import URL
     from sqlalchemy import create_engine
+    from sc_py import sc_fxns as sc
+
     connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
     connection_url = URL.create(
         "mssql+pyodbc", query={"odbc_connect": connection_string})
