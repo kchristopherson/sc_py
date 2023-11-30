@@ -481,6 +481,8 @@ def get_returns(source, returns_df, better_sources):
         "mssql+pyodbc", query={"odbc_connect": connection_string})
     engine = create_engine(connection_url)
 
+    import logging
+    LOGGER = logging.getLogger(__name__)
     # set this to false as mostly not used
     use_type = False
 
@@ -523,7 +525,7 @@ def get_returns(source, returns_df, better_sources):
                            dtype={'id': np.int64, 'ret_ts_id': np.int64})
     db = sc.rename_with_additional_string(db, 'existing')
 
-    print('starting process to remove inferior return sources')
+    LOGGER.info('starting process to remove inferior return sources')
     # check which internal IDs are in the returns_df but not in the list of funds whose returns we should be updating
     # these are funds with other sources in the database
     # strip out sources that are higher in our hierarchy
@@ -581,24 +583,24 @@ def get_returns(source, returns_df, better_sources):
         # index=False prevents failure on trying to insert the index column
         old_upload_combo.to_sql('old_returns_ts', engine,
                                 if_exists='append', index=False)
-        print('   '+str(len(old_new_records['id'])) +
-              ' new rows inserted to old_returns_ts')
-        print('   '+str(len(old_delete_records['id'])) +
-              ' rows deleted and updated to old_returns_ts')
+        LOGGER.info('   '+str(len(old_new_records['id'])) +
+                    ' new rows inserted to old_returns_ts')
+        LOGGER.info('   '+str(len(old_delete_records['id'])) +
+                    ' rows deleted and updated to old_returns_ts')
     else:
-        print('   no records to move to old_returns_ts')
+        LOGGER.info('   no records to move to old_returns_ts')
 
     # delete the old records
     to_delete = worse_returns['ret_ts_id existing'].to_list()
     sc.batch_delete(to_delete, 'returns_ts', 'ret_ts_id')
 
-    print('   '+str(len(worse_returns['ret_ts_id existing'])) +
-          ' inferior rows of return sources deleted from returns_ts')
+    LOGGER.info('   '+str(len(worse_returns['ret_ts_id existing'])) +
+                ' inferior rows of return sources deleted from returns_ts')
 
-    print("""finished process to remove inferior return sources
+    LOGGER.info("""finished process to remove inferior return sources
 
     """)
-    print("""starting process to update non-blended returns""")
+    LOGGER.info("""starting process to update non-blended returns""")
     # re-query ids and returns to get an updated list of funds to insert and returns to check against
     # then merge to make sure we're inserting new rows from returns_ts
     ids = pd.read_sql_query("""
@@ -676,12 +678,12 @@ def get_returns(source, returns_df, better_sources):
         # index=False prevents failure on trying to insert the index column
         old_upload_combo.to_sql('old_returns_ts', engine,
                                 if_exists='append', index=False)
-        print('   '+str(len(old_new_records['id'])) +
-              ' new rows inserted to old_returns_ts')
-        print('   '+str(len(old_delete_records['id'])) +
-              ' rows deleted and updated to old_returns_ts')
+        LOGGER.info('   '+str(len(old_new_records['id'])) +
+                    ' new rows inserted to old_returns_ts')
+        LOGGER.info('   '+str(len(old_delete_records['id'])) +
+                    ' rows deleted and updated to old_returns_ts')
     else:
-        print('   no records to move to old_returns_ts')
+        LOGGER.info('   no records to move to old_returns_ts')
 
     # delete the old records
     to_delete = breaks['ret_ts_id existing'].to_list()
@@ -697,14 +699,14 @@ def get_returns(source, returns_df, better_sources):
 
     # index=False prevents failure on trying to insert the index column
     upload.to_sql('returns_ts', engine, if_exists='append', index=False)
-    print('   '+str(len(new['id']))+' new rows inserted to returns_ts')
-    print('   '+str(len(breaks['id'])) +
-          ' rows deleted and updated to returns_ts')
+    LOGGER.info('   '+str(len(new['id']))+' new rows inserted to returns_ts')
+    LOGGER.info('   '+str(len(breaks['id'])) +
+                ' rows deleted and updated to returns_ts')
 
-    print("""finished process to update non-blended returns
+    LOGGER.info("""finished process to update non-blended returns
 
     """)
-    print("""starting process to update blended returns""")
+    LOGGER.info("""starting process to update blended returns""")
     # get list of funds that we want to blend returns on
     blend_ids = pd.read_sql_query("""
     select distinct e.id,e.external_id 
@@ -778,12 +780,12 @@ def get_returns(source, returns_df, better_sources):
         # index=False prevents failure on trying to insert the index column
         old_blend_upload_combo.to_sql(
             'old_returns_ts', engine, if_exists='append', index=False)
-        print(
+        LOGGER.info(
             '   '+str(len(old_blend_new_records['id']))+' new rows inserted to old_returns_ts')
-        print('   '+str(len(old_blend_delete_records['id'])) +
-              ' rows deleted and updated to old_returns_ts')
+        LOGGER.info('   '+str(len(old_blend_delete_records['id'])) +
+                    ' rows deleted and updated to old_returns_ts')
     else:
-        print('   no records to move to old_returns_ts')
+        LOGGER.info('   no records to move to old_returns_ts')
 
     blend_to_delete = blend_breaks['ret_ts_id existing'].to_list()
 
@@ -803,13 +805,13 @@ def get_returns(source, returns_df, better_sources):
         # index=False prevents failure on trying to insert the index column
         blend_upload.to_sql('returns_ts', engine,
                             if_exists='append', index=False)
-        print('   '+str(len(blend_new['id'])) +
-              ' new rows inserted to returns_ts')
-        print('   '+str(len(blend_breaks['id'])) +
-              ' rows deleted and updated to returns_ts')
+        LOGGER.info('   '+str(len(blend_new['id'])) +
+                    ' new rows inserted to returns_ts')
+        LOGGER.info('   '+str(len(blend_breaks['id'])) +
+                    ' rows deleted and updated to returns_ts')
     else:
-        print('   no records to update with blended method')
-    print("""finished process to update blended returns
+        LOGGER.info('   no records to update with blended method')
+    LOGGER.info("""finished process to update blended returns
 
     """)
 
@@ -845,6 +847,9 @@ def get_fees(source, fees_df, better_sources):
     connection_url = URL.create(
         "mssql+pyodbc", query={"odbc_connect": connection_string})
     engine = create_engine(connection_url)
+
+    import logging
+    LOGGER = logging.getLogger(__name__)
 
     if type(better_sources) is not list:
         raise ValueError("""'better_sources' must be of type list """)
@@ -912,7 +917,7 @@ def get_fees(source, fees_df, better_sources):
 
     # delete the old records
     to_delete = worse_fee_sources['id_record_number existing'].to_list()
-    print('deleting '+str(len(to_delete))+' based on worse sources')
+    LOGGER.info('deleting '+str(len(to_delete))+' based on worse sources')
     batch_delete(to_delete, 'fees', 'id_record_number')
 
     ids = pd.read_sql_query("""
@@ -1004,7 +1009,7 @@ def get_fees(source, fees_df, better_sources):
                      'hurdle_rate', 'high_water_mark', 'source']]
     # index=False prevents failure on trying to insert the index column
     upload.to_sql('fees', engine, if_exists='append', index=False)
-    print(str(len(upload['id']))+' rows inserted')
+    LOGGER.info(str(len(upload['id']))+' rows inserted')
 
 
 def rename_with_additional_string(df, string_without_leading_space):
@@ -1137,8 +1142,8 @@ def get_liquidity(source, liquidity_df, better_sources):
     to_delete = worse_liq_sources['id_record_number existing'].to_list()
     batch_delete(to_delete, 'fund_liquidity', 'id_record_number')
 
-    print(str(len(to_delete)) +
-          ' rows of inferior fund_liquidity sources deleted from fund_liquidity table')
+    LOGGER.info(str(len(to_delete)) +
+                ' rows of inferior fund_liquidity sources deleted from fund_liquidity table')
 
     ids = pd.read_sql_query("""
     select e.id,e.external_id 
@@ -1232,7 +1237,7 @@ def get_liquidity(source, liquidity_df, better_sources):
                      'lock_up', 'subscription_frequency', 'source']]
     # index=False prevents failure on trying to insert the index column
     upload.to_sql('fund_liquidity', engine, if_exists='append', index=False)
-    print(str(len(upload['id']))+' rows deleted and updated')
+    LOGGER.info(str(len(upload['id']))+' rows deleted and updated')
 
 
 def send_email_with_attachment(receiver_email, sender_email, subject, body, attachment_file):
@@ -1389,6 +1394,9 @@ def get_status(df, source_name, better_sources_list):
     conn = connect(connection_string)
     cursor = conn.cursor()
 
+    import logging
+    LOGGER = logging.getLogger(__name__)
+
     # include manual here as that is how we override. we dont want to override these records
     better_sources_list = better_sources_list + ['manual']
     if 'id' not in df.columns:
@@ -1445,14 +1453,14 @@ def get_status(df, source_name, better_sources_list):
             ''' DELETE FROM fund_status where id in '''+sub_list_to_delete)
         conn.commit()
 
-        print(str(len(status_update['id']))+' no. records deleted')
+        LOGGER.info(str(len(status_update['id']))+' no. records deleted')
         status_update[['id',
                        'current_status',
                        'status_source',
                        'included',
                        'included_source']].to_sql('fund_status', engine, if_exists='append', index=False)  # index=False prevents failure on trying to insert the index column
-        print(str(len(status_update['id'])) +
-              ' funds have had their status updated')
+        LOGGER.info(str(len(status_update['id'])) +
+                    ' funds have had their status updated')
     else:
-        print('no funds need updating')
+        LOGGER.info('no funds need updating')
     return status_update
