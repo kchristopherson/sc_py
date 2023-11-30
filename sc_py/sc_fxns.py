@@ -178,6 +178,9 @@ def get_assets(source, aum_df, better_sources):
         "mssql+pyodbc", query={"odbc_connect": connection_string})
     engine = create_engine(connection_url)
 
+    import logging
+    LOGGER = logging.getLogger(__name__)
+
     if type(better_sources) is not list:
         raise ValueError("""'better_sources' must be of type list """)
     if 'id' not in aum_df.columns.to_list():
@@ -265,19 +268,19 @@ def get_assets(source, aum_df, better_sources):
         # index=False prevents failure on trying to insert the index column
         old_upload_combo.to_sql('old_aum_ts', engine,
                                 if_exists='append', index=False)
-        print(str(len(old_new_records['id'])) +
-              ' new rows inserted to old_aum_ts')
-        print(str(len(old_delete_records['id'])) +
-              ' rows deleted and updated to old_aum_ts')
+        LOGGER.info(str(len(old_new_records['id'])) +
+                    ' new rows inserted to old_aum_ts')
+        LOGGER.info(str(len(old_delete_records['id'])) +
+                    ' rows deleted and updated to old_aum_ts')
     else:
-        print('no records to move to old_aum_ts')
+        LOGGER.info('no records to move to old_aum_ts')
 
     # delete the old records
     to_delete = worse_aums['aum_ts_id'].to_list()
     sc.batch_delete(to_delete, 'aum_ts', 'aum_ts_id')
 
-    print(str(len(worse_aums['aum_ts_id'])) +
-          ' rows of inferior aum sources deleted from aum_ts')
+    LOGGER.info(str(len(worse_aums['aum_ts_id'])) +
+                ' rows of inferior aum sources deleted from aum_ts')
 
     ids = pd.read_sql_query("""
     select e.id,e.external_id 
@@ -344,11 +347,12 @@ def get_assets(source, aum_df, better_sources):
         # index=False prevents failure on trying to insert the index column
         old_upload.to_sql('old_aum_ts', engine,
                           if_exists='append', index=False)
-        print(str(len(old_upload['id']))+' new rows inserted to old_aum_ts')
-        print(str(len(old_delete_records['id'])) +
-              ' rows deleted and updated to old_aum_ts')
+        LOGGER.info(str(len(old_upload['id'])) +
+                    ' new rows inserted to old_aum_ts')
+        LOGGER.info(str(len(old_delete_records['id'])) +
+                    ' rows deleted and updated to old_aum_ts')
     else:
-        print('no records to move to old_aum_ts')
+        LOGGER.info('no records to move to old_aum_ts')
 
     to_delete = breaks['aum_ts_id'].to_list()
     # delete the old records
@@ -360,7 +364,7 @@ def get_assets(source, aum_df, better_sources):
     upload = upload[['id', 'asof_date', 'asset_value', 'source']]
     # index=False prevents failure on trying to insert the index column
     upload.to_sql('aum_ts', engine, if_exists='append', index=False)
-    print(str(len(upload['id']))+' rows deleted and updated')
+    LOGGER.info(str(len(upload['id']))+' rows deleted and updated')
 
     # query funds with blended AUMs allowed
     blend_ids = pd.read_sql_query("""
@@ -427,12 +431,12 @@ def get_assets(source, aum_df, better_sources):
         # index=False prevents failure on trying to insert the index column
         old_blend_final_upload.to_sql(
             'old_aum_ts', engine, if_exists='append', index=False)
-        print(str(len(old_blend_new_records['id'])
-                  )+' new rows inserted to old_aum_ts')
-        print(str(len(old_blend_delete_records['id'])) +
-              ' rows deleted and updated to old_aum_ts')
+        LOGGER.info(str(len(old_blend_new_records['id'])
+                        )+' new rows inserted to old_aum_ts')
+        LOGGER.info(str(len(old_blend_delete_records['id'])) +
+                    ' rows deleted and updated to old_aum_ts')
     else:
-        print('no records to move to old_aum_ts')
+        LOGGER.info('no records to move to old_aum_ts')
 
     to_delete = blend_breaks['aum_ts_id'].to_list()
     sc.batch_delete(to_delete, 'aum_ts', 'aum_ts_id')
@@ -443,11 +447,11 @@ def get_assets(source, aum_df, better_sources):
             'id', 'asof_date', 'asset_value', 'source']]
         # index=False prevents failure on trying to insert the index column
         blend_upload.to_sql('aum_ts', engine, if_exists='append', index=False)
-        print(str(len(blend_new['id']))+' new rows inserted to aum_ts')
-        print(str(len(blend_breaks['id'])) +
-              ' rows deleted and updated to aum_ts')
+        LOGGER.info(str(len(blend_new['id']))+' new rows inserted to aum_ts')
+        LOGGER.info(str(len(blend_breaks['id'])) +
+                    ' rows deleted and updated to aum_ts')
     else:
-        print('no records to update with blended method')
+        LOGGER.info('no records to update with blended method')
 
 
 def get_returns(source, returns_df, better_sources):
@@ -679,7 +683,6 @@ def get_returns(source, returns_df, better_sources):
     else:
         print('   no records to move to old_returns_ts')
 
-    breaks.to_csv(source+'_backup2.csv')
     # delete the old records
     to_delete = breaks['ret_ts_id existing'].to_list()
     sc.batch_delete(to_delete, 'returns_ts', 'ret_ts_id')
@@ -906,7 +909,6 @@ def get_fees(source, fees_df, better_sources):
                                            'id_record_number existing',
                                            'hurdle_rate existing',
                                            'high_water_mark existing']]
-    worse_fee_sources.to_csv(source+"_fee_backup.csv")
 
     # delete the old records
     to_delete = worse_fee_sources['id_record_number existing'].to_list()
