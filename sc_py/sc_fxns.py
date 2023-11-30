@@ -54,6 +54,9 @@ def batch_delete(list_to_delete, table_name, delete_column_name):
     conn = connect(connection_string)
     cursor = conn.cursor()
 
+    import logging
+    LOGGER = logging.getLogger(__name__)
+
     if type(list_to_delete) is not list:
         raise ValueError("""'list_to_delete' must be of type list """)
     # get initial record count
@@ -64,11 +67,11 @@ def batch_delete(list_to_delete, table_name, delete_column_name):
         # the database can only delete 2090 records in one go
         # if number of records>2090, we have to beak it up
         if len(list_to_delete) > 2090:
-            print('need to batch delete to accomodate database limits')
+            LOGGER.info('need to batch delete to accomodate database limits')
             num_iterations = ceil(len(list_to_delete)/2090)
             for i in range(num_iterations):
-                print('deleting rows '+str(i*2090)+' to ' +
-                      str(min(2090*(i+1), len(list_to_delete))))
+                LOGGER.info('deleting rows '+str(i*2090)+' to ' +
+                            str(min(2090*(i+1), len(list_to_delete))))
                 sub_list_to_delete = list_to_delete[2090*(i):2090*(i+1)]
                 if type(sub_list_to_delete[0]) == str:
                     # we only check the first element because sql ensures constant datatypes
@@ -98,10 +101,10 @@ def batch_delete(list_to_delete, table_name, delete_column_name):
         end_no_records_df = pd.read_sql_query(
             """select count("""+delete_column_name+""") as ct from """+table_name, engine)
         end_no_records = end_no_records_df.loc[0, 'ct']
-        print('deleted '+str(no_records-end_no_records)+' number of records from table: ' +
-              table_name+', based on column: ' + delete_column_name)
+        LOGGER.info('deleted '+str(no_records-end_no_records)+' number of records from table: ' +
+                    table_name+', based on column: ' + delete_column_name)
     else:
-        print('no records to delete from: '+table_name)
+        LOGGER.info('no records to delete from: '+table_name)
 
 
 def adj_dataframe(df):
@@ -237,7 +240,7 @@ def get_assets(source, aum_df, better_sources):
     # this only has to be done on the breaks df because that represents the aums we're about to delete
     old_upload = worse_aums.copy()
     # to avoid confusion with which ts_id to delete
-    old_upload = old_upload.drop(columns = 'aum_ts_id')
+    old_upload = old_upload.drop(columns='aum_ts_id')
 
     if len(old_upload['id']) > 0:
         db_old = pd.read_sql_query('SELECT * FROM old_aum_ts',
@@ -840,7 +843,6 @@ def get_fees(source, fees_df, better_sources):
         "mssql+pyodbc", query={"odbc_connect": connection_string})
     engine = create_engine(connection_url)
 
-
     if type(better_sources) is not list:
         raise ValueError("""'better_sources' must be of type list """)
     if 'id' not in fees_df.columns.to_list():
@@ -1057,7 +1059,6 @@ def get_liquidity(source, liquidity_df, better_sources):
         "mssql+pyodbc", query={"odbc_connect": connection_string})
     engine = create_engine(connection_url)
 
-
     if type(better_sources) is not list:
         raise ValueError("""'better_sources' must be of type list """)
     if 'id' not in liquidity_df.columns.to_list():
@@ -1157,7 +1158,8 @@ def get_liquidity(source, liquidity_df, better_sources):
     assets_id = liquidity_df[liquidity_df['id'].isin(ids['id'].to_list())]
     assets_id = assets_id.reset_index(drop=True)
 
-    db = pd.read_sql_query('SELECT * FROM fund_liquidity ', engine, dtype={'id': np.int64})
+    db = pd.read_sql_query('SELECT * FROM fund_liquidity ',
+                           engine, dtype={'id': np.int64})
     db = adj_dataframe(db)
 
     db = rename_with_additional_string(db, 'existing')
