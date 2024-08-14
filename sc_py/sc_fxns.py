@@ -46,10 +46,11 @@ def batch_delete(list_to_delete, table_name, delete_column_name):
     from math import ceil
     from pyodbc import connect
     import pandas as pd
-    connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
+    from os import environ
+    connection_string = "Driver={SQL Server};" + \
+        f"Server={environ['DASH_AZURE_DB_SERVER']};Database={environ['DASH_SC_DB_NAME']};UID={environ['DASH_AZURE_DB_RW_USER']};PWD={environ['DASH_AZURE_DB_RW_USER_PWD']}"
     connection_url = URL.create(
         "mssql+pyodbc", query={"odbc_connect": connection_string})
-
     engine = create_engine(connection_url)
     conn = connect(connection_string)
     cursor = conn.cursor()
@@ -173,7 +174,9 @@ def get_assets(source, aum_df, better_sources):
     from sqlalchemy import create_engine
     from sc_py import sc_fxns as sc
 
-    connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
+    from os import environ
+    connection_string = "Driver={SQL Server};" + \
+        f"Server={environ['DASH_AZURE_DB_SERVER']};Database={environ['DASH_SC_DB_NAME']};UID={environ['DASH_AZURE_DB_RW_USER']};PWD={environ['DASH_AZURE_DB_RW_USER_PWD']}"
     connection_url = URL.create(
         "mssql+pyodbc", query={"odbc_connect": connection_string})
     engine = create_engine(connection_url)
@@ -476,7 +479,9 @@ def get_returns(source, returns_df, better_sources):
     import numpy as np
     from sqlalchemy.engine import URL
     from sqlalchemy import create_engine
-    connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
+    from os import environ
+    connection_string = "Driver={SQL Server};" + \
+        f"Server={environ['DASH_AZURE_DB_SERVER']};Database={environ['DASH_SC_DB_NAME']};UID={environ['DASH_AZURE_DB_RW_USER']};PWD={environ['DASH_AZURE_DB_RW_USER_PWD']}"
     connection_url = URL.create(
         "mssql+pyodbc", query={"odbc_connect": connection_string})
     engine = create_engine(connection_url)
@@ -843,7 +848,9 @@ def get_fees(source, fees_df, better_sources):
     import numpy as np
     from sqlalchemy.engine import URL
     from sqlalchemy import create_engine
-    connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
+    from os import environ
+    connection_string = "Driver={SQL Server};" + \
+        f"Server={environ['DASH_AZURE_DB_SERVER']};Database={environ['DASH_SC_DB_NAME']};UID={environ['DASH_AZURE_DB_RW_USER']};PWD={environ['DASH_AZURE_DB_RW_USER_PWD']}"
     connection_url = URL.create(
         "mssql+pyodbc", query={"odbc_connect": connection_string})
     engine = create_engine(connection_url)
@@ -1061,7 +1068,9 @@ def get_liquidity(source, liquidity_df, better_sources):
     import numpy as np
     from sqlalchemy.engine import URL
     from sqlalchemy import create_engine
-    connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
+    from os import environ
+    connection_string = "Driver={SQL Server};" + \
+        f"Server={environ['DASH_AZURE_DB_SERVER']};Database={environ['DASH_SC_DB_NAME']};UID={environ['DASH_AZURE_DB_RW_USER']};PWD={environ['DASH_AZURE_DB_RW_USER_PWD']}"
     connection_url = URL.create(
         "mssql+pyodbc", query={"odbc_connect": connection_string})
     engine = create_engine(connection_url)
@@ -1386,8 +1395,9 @@ def get_status(df, source_name, better_sources_list):
     from sqlalchemy.engine import URL
     from sqlalchemy import create_engine
     from pyodbc import connect
-
-    connection_string = 'Driver={SQL Server};Server=scdb1.silvercreeksv.com;Database=scfundrisk;Trusted_Connection=yes;'
+    from os import environ
+    connection_string = "Driver={SQL Server};" + \
+        f"Server={environ['DASH_AZURE_DB_SERVER']};Database={environ['DASH_SC_DB_NAME']};UID={environ['DASH_AZURE_DB_RW_USER']};PWD={environ['DASH_AZURE_DB_RW_USER_PWD']}"
     connection_url = URL.create(
         "mssql+pyodbc", query={"odbc_connect": connection_string})
     engine = create_engine(connection_url)
