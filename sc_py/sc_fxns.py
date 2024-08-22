@@ -1,6 +1,7 @@
 import sys
 current_module = sys.modules[__name__]
-
+import logging
+LOGGER = logging.getLogger(__name__)
 
 def convert_id(row):
     """
